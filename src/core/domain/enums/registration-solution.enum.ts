@@ -1,0 +1,7 @@
+export enum RegistrationSolution {
+  COFFEE_BREAK = "COFFEE_BREAK",
+  WORKING_LUNCH = "WORKING_LUNCH",
+  SNACKS = "SNACKS",
+  DESSERTS = "DESSERTS",
+  BEVERAGES = "BEVERAGES",
+}
