@@ -1,0 +1,7 @@
+export enum PeoplePerOrderRange {
+  FROM_1_TO_10 = "FROM_1_TO_10",
+  FROM_11_TO_25 = "FROM_11_TO_25",
+  FROM_26_TO_50 = "FROM_26_TO_50",
+  FROM_51_TO_100 = "FROM_51_TO_100",
+  MORE_THAN_100 = "MORE_THAN_100",
+}

@@ -84,6 +84,26 @@ export class UpdateCompanyRegistrationRequestUseCase {
       data.employeeCount = dto.employeeCount;
     }
 
+    if (dto.generalNeed !== undefined) {
+      data.generalNeed = dto.generalNeed.trim();
+    }
+
+    if (dto.interestedSolutions !== undefined) {
+      data.interestedSolutions = { set: dto.interestedSolutions };
+    }
+
+    if (dto.orderFrequency !== undefined) {
+      data.orderFrequency = dto.orderFrequency;
+    }
+
+    if (dto.peoplePerOrder !== undefined) {
+      data.peoplePerOrder = dto.peoplePerOrder;
+    }
+
+    if (dto.additionalComments !== undefined) {
+      data.additionalComments = dto.additionalComments?.trim() || null;
+    }
+
     const taxIdChanged = nextTaxId !== current.taxId;
     const emailChanged = nextContactEmail !== current.contactEmail;
     if (taxIdChanged || emailChanged) {

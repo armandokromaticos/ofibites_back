@@ -1,6 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { CompanyRegistrationRequestEntity } from "../../../domain/entities/company-registration-request.entity";
 import { RegistrationRequestStatus } from "../../../domain/enums/registration-request-status.enum";
+import { RegistrationSolution } from "../../../domain/enums/registration-solution.enum";
+import { OrderFrequency } from "../../../domain/enums/order-frequency.enum";
+import { PeoplePerOrderRange } from "../../../domain/enums/people-per-order-range.enum";
 
 export class CompanyRegistrationRequestResponseDto {
   @ApiProperty()
@@ -26,6 +29,30 @@ export class CompanyRegistrationRequestResponseDto {
 
   @ApiPropertyOptional({ nullable: true, type: Number })
   employeeCount: number | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description:
+      "Necesidad general del cliente. Null en solicitudes anteriores.",
+  })
+  generalNeed: string | null;
+
+  @ApiProperty({
+    enum: RegistrationSolution,
+    isArray: true,
+    description: "Soluciones de interés. [] en solicitudes anteriores.",
+  })
+  interestedSolutions: RegistrationSolution[];
+
+  @ApiPropertyOptional({ nullable: true, enum: OrderFrequency })
+  orderFrequency: OrderFrequency | null;
+
+  @ApiPropertyOptional({ nullable: true, enum: PeoplePerOrderRange })
+  peoplePerOrder: PeoplePerOrderRange | null;
+
+  @ApiPropertyOptional({ nullable: true, type: String })
+  additionalComments: string | null;
 
   @ApiProperty({ enum: RegistrationRequestStatus })
   status: RegistrationRequestStatus;
@@ -60,6 +87,11 @@ export class CompanyRegistrationRequestResponseDto {
     dto.contactPhone = entity.contactPhone;
     dto.position = entity.position;
     dto.employeeCount = entity.employeeCount;
+    dto.generalNeed = entity.generalNeed;
+    dto.interestedSolutions = entity.interestedSolutions;
+    dto.orderFrequency = entity.orderFrequency;
+    dto.peoplePerOrder = entity.peoplePerOrder;
+    dto.additionalComments = entity.additionalComments;
     dto.status = entity.status;
     dto.rejectionReason = entity.rejectionReason;
     dto.reviewedAt = entity.reviewedAt;

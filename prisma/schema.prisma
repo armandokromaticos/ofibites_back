@@ -420,22 +420,52 @@ enum RegistrationRequestStatus {
   REJECTED
 }
 
+enum RegistrationSolution {
+  COFFEE_BREAK
+  WORKING_LUNCH
+  SNACKS
+  DESSERTS
+  BEVERAGES
+}
+
+enum OrderFrequency {
+  DAILY
+  SEVERAL_TIMES_A_WEEK
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  OCCASIONAL
+}
+
+enum PeoplePerOrderRange {
+  FROM_1_TO_10
+  FROM_11_TO_25
+  FROM_26_TO_50
+  FROM_51_TO_100
+  MORE_THAN_100
+}
+
 model CompanyRegistrationRequest {
-  id                String                    @id @default(uuid())
-  legalName         String                    @map("legal_name")
-  taxId             String                    @map("tax_id")
-  contactName       String                    @map("contact_name")
-  contactEmail      String                    @map("contact_email")
-  contactPhone      String                    @map("contact_phone")
-  position          String?
-  employeeCount     Int?                      @map("employee_count")
-  status            RegistrationRequestStatus @default(PENDING)
-  rejectionReason   String?                   @map("rejection_reason")
-  reviewedAt        DateTime?                 @map("reviewed_at")
-  reviewedById      String?                   @map("reviewed_by_id")
-  approvedCompanyId String?                   @unique @map("approved_company_id")
-  createdAt         DateTime                  @default(now()) @map("created_at")
-  updatedAt         DateTime                  @updatedAt @map("updated_at")
+  id                  String                    @id @default(uuid())
+  legalName           String                    @map("legal_name")
+  taxId               String                    @map("tax_id")
+  contactName         String                    @map("contact_name")
+  contactEmail        String                    @map("contact_email")
+  contactPhone        String                    @map("contact_phone")
+  position            String?
+  employeeCount       Int?                      @map("employee_count")
+  generalNeed         String?                   @map("general_need")
+  interestedSolutions RegistrationSolution[]    @default([]) @map("interested_solutions")
+  orderFrequency      OrderFrequency?           @map("order_frequency")
+  peoplePerOrder      PeoplePerOrderRange?      @map("people_per_order")
+  additionalComments  String?                   @map("additional_comments")
+  status              RegistrationRequestStatus @default(PENDING)
+  rejectionReason     String?                   @map("rejection_reason")
+  reviewedAt          DateTime?                 @map("reviewed_at")
+  reviewedById        String?                   @map("reviewed_by_id")
+  approvedCompanyId   String?                   @unique @map("approved_company_id")
+  createdAt           DateTime                  @default(now()) @map("created_at")
+  updatedAt           DateTime                  @updatedAt @map("updated_at")
 
   reviewedBy      User?    @relation("ReviewedRegistrations", fields: [reviewedById], references: [id], onDelete: SetNull)
   approvedCompany Company? @relation(fields: [approvedCompanyId], references: [id], onDelete: SetNull)

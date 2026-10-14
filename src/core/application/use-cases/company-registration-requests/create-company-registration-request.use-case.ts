@@ -51,6 +51,11 @@ export class CreateCompanyRegistrationRequestUseCase {
       contactPhone: dto.contactPhone,
       position: dto.position ?? null,
       employeeCount: dto.employeeCount ?? null,
+      generalNeed: dto.generalNeed,
+      interestedSolutions: dto.interestedSolutions,
+      orderFrequency: dto.orderFrequency,
+      peoplePerOrder: dto.peoplePerOrder,
+      additionalComments: dto.additionalComments ?? null,
     });
 
     return this.requestRepository.create(entity);
