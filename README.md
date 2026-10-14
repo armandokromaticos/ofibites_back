@@ -47,11 +47,13 @@ yarn test path/to/file.spec.ts
 yarn test -t "nombre del test"
 
 # Prisma
-npx prisma migrate dev --name <slug>   # crea + aplica migración en dev
-npx prisma migrate deploy              # aplica migraciones en prod
+npx prisma migrate diff --from-schema-datamodel <schema-anterior> --to-schema-datamodel prisma/schema.prisma --script  # genera el SQL de un cambio
+npx prisma db execute --file prisma/migrations/<AAAAMMDD_slug>/migration.sql --schema prisma/schema.prisma  # lo aplica
 npx prisma generate                    # regenera cliente
 npx prisma studio                      # GUI
 ```
+
+> **Migraciones sin baseline.** `prisma/migrations/` no es un historial de Prisma Migrate: la BD de Supabase nunca se baselineó y los SQL antiguos se borraron (commit fcab065). Cada cambio de schema se guarda como `prisma/migrations/<AAAAMMDD_slug>/migration.sql` (envuelto en `BEGIN; … COMMIT;`) y se aplica **a mano** con `prisma db execute` o desde el SQL editor de Supabase, antes de desplegar el código que lo usa. **Nunca** uses `prisma migrate dev` ni `prisma migrate deploy` contra esta BD: piden un reset (pérdida de datos) o fallan con P3005.
 
 ## Estructura
 
