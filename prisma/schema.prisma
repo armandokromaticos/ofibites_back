@@ -474,6 +474,7 @@ model SupportTicket {
 
   @@index([companyId, status])
   @@index([status])
+  @@index([createdById])
   @@map("support_tickets")
 }
 
@@ -489,6 +490,7 @@ model SupportMessage {
   author User          @relation("SupportMessagesAuthored", fields: [authorId], references: [id], onDelete: Restrict)
 
   @@index([ticketId])
+  @@index([authorId])
   @@map("support_messages")
 }
 

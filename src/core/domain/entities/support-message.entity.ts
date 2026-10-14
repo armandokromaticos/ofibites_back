@@ -49,11 +49,15 @@ export class SupportMessageEntity {
   static fromCreateParams(
     params: CreateSupportMessageParams,
   ): SupportMessageEntity {
+    const body = params.body.trim();
+    if (body.length === 0) {
+      throw new Error("body cannot be empty");
+    }
     const entity = new SupportMessageEntity();
     entity.id = "";
     entity.ticketId = params.ticketId;
     entity.authorId = params.authorId;
-    entity.body = params.body.trim();
+    entity.body = body;
     entity.attachmentUrl = params.attachmentUrl ?? null;
     entity.createdAt = new Date();
     return entity;

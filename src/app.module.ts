@@ -25,6 +25,7 @@ import { CartModule } from "./modules/cart/cart.module";
 import { CompanyOnboardingModule } from "./modules/company-onboarding/company-onboarding.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { InvitationsModule } from "./modules/invitations/invitations.module";
+import { SupportTicketsModule } from "./modules/support-tickets/support-tickets.module";
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { InvitationsModule } from "./modules/invitations/invitations.module";
     CompanyOnboardingModule,
     DashboardModule,
     InvitationsModule,
+    SupportTicketsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
