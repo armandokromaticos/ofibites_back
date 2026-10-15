@@ -14,6 +14,7 @@ import type { IUserRepository } from "../../../domain/repositories/user.reposito
 import { USER_REPOSITORY } from "../../../domain/repositories/user.repository.interface";
 import { SupabaseService } from "../../../infrastructure/supabase/supabase.service";
 import { ResendMemberInviteResponseDto } from "../../dto/company-members/resend-member-invite-response.dto";
+import { maskEmail } from "../../shared/mask-email.util";
 
 @Injectable()
 export class ResendCompanyMemberInviteUseCase {
@@ -78,7 +79,7 @@ export class ResendCompanyMemberInviteUseCase {
     }
 
     const email = user.email.trim().toLowerCase();
-    const maskedEmail = this.maskEmail(email);
+    const maskedEmail = maskEmail(email);
     const redirectTo = process.env.SUPABASE_INVITE_REDIRECT_URL?.trim();
 
     this.logger.log(
@@ -113,14 +114,5 @@ export class ResendCompanyMemberInviteUseCase {
       message:
         "Se reenvió la invitación vía Supabase. El usuario recibirá un email para establecer su contraseña.",
     };
-  }
-
-  /** Enmascara el email para logs sin filtrar PII: "j***@dominio.com". */
-  private maskEmail(email: string): string {
-    const [local, domain] = email.split("@");
-    if (!domain) {
-      return "***";
-    }
-    return `${local.slice(0, 1)}***@${domain}`;
   }
 }
