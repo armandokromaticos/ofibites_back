@@ -26,7 +26,13 @@ DATABASE_URL=postgresql://...      # connection pooler de Supabase
 DIRECT_URL=postgresql://...        # conexión directa (para migraciones)
 SUPABASE_URL=https://....supabase.co
 SUPABASE_SERVICE_ROLE_KEY=...
+# URL del front a la que lleva el correo de "olvidé mi contraseña" (p. ej. http://localhost:3001/reset-password).
+# Debe estar en la allow-list de Redirect URLs de Supabase Auth; si falta, Supabase usa su Site URL.
+SUPABASE_RECOVERY_REDIRECT_URL=http://localhost:3001/reset-password
 PORT=3000
+# Saltos de proxy de confianza (Express "trust proxy") para que la limitación por IP vea la IP real.
+# 0 o sin definir en local; 1 en producción detrás de un proxy/PaaS.
+TRUST_PROXY_HOPS=0
 NODE_ENV=development
 # CORS_ORIGIN=https://ofibites.com  # solo en producción
 ```
