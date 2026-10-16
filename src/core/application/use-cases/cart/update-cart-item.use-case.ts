@@ -7,6 +7,7 @@ import { CartViewService } from "../../services/cart-view.service";
 import { assertCompanyActive } from "../../shared/company-active.guard";
 import { UpdateCartItemDto } from "../../dto/cart/update-cart-item.dto";
 import { CartResponseDto } from "../../dto/cart/cart-response.dto";
+import { Lang } from "../../../domain/enums/lang.enum";
 
 @Injectable()
 export class UpdateCartItemUseCase {
@@ -22,6 +23,7 @@ export class UpdateCartItemUseCase {
     companyId: string,
     itemId: string,
     dto: UpdateCartItemDto,
+    lang: Lang = Lang.ES,
   ): Promise<CartResponseDto> {
     await assertCompanyActive(companyId, {
       companyRepository: this.companyRepository,
@@ -36,6 +38,6 @@ export class UpdateCartItemUseCase {
     }
 
     await this.cartRepository.updateItemQuantity(itemId, dto.quantity);
-    return this.cartView.build(companyId);
+    return this.cartView.build(companyId, lang);
   }
 }

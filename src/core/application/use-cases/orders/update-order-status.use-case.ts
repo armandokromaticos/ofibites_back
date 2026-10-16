@@ -8,15 +8,21 @@ import type { IOrderRepository } from "../../../domain/repositories/order.reposi
 import { ORDER_REPOSITORY } from "../../../domain/repositories/order.repository.interface";
 import { OrderEntity } from "../../../domain/entities/order.entity";
 import { OrderStatus } from "../../../domain/enums/order-status.enum";
+import { OrderStatusNotificationService } from "../../services/order-status-notification.service";
 
 @Injectable()
 export class UpdateOrderStatusUseCase {
   constructor(
     @Inject(ORDER_REPOSITORY)
     private readonly orderRepository: IOrderRepository,
+    private readonly orderStatusNotifications: OrderStatusNotificationService,
   ) {}
 
-  async execute(orderId: string, newStatus: OrderStatus): Promise<OrderEntity> {
+  async execute(
+    orderId: string,
+    newStatus: OrderStatus,
+    actorUserId?: string,
+  ): Promise<OrderEntity> {
     const order = await this.orderRepository.findUnique({
       where: { id: orderId },
       include: { items: { include: { modifiers: true } } },
@@ -31,6 +37,12 @@ export class UpdateOrderStatusUseCase {
       );
     }
 
-    return this.orderRepository.updateStatus(orderId, newStatus);
+    const updated = await this.orderRepository.updateStatus(orderId, newStatus);
+    // No lanza: si falla la notificación, la transición ya quedó guardada.
+    await this.orderStatusNotifications.notifyStatusChange(
+      updated,
+      actorUserId,
+    );
+    return updated;
   }
 }

@@ -27,6 +27,7 @@ import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { InvitationsModule } from "./modules/invitations/invitations.module";
 import { SupportTicketsModule } from "./modules/support-tickets/support-tickets.module";
 import { CatalogModule } from "./modules/catalog/catalog.module";
+import { NotificationsModule } from "./modules/notifications/notifications.module";
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { CatalogModule } from "./modules/catalog/catalog.module";
     InvitationsModule,
     SupportTicketsModule,
     CatalogModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

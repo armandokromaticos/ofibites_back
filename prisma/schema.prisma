@@ -32,6 +32,7 @@ model User {
   cartItemsAdded        CartItem[]                   @relation("CartItemAddedBy")
   supportTickets        SupportTicket[]              @relation("SupportTicketsCreated")
   supportMessages       SupportMessage[]             @relation("SupportMessagesAuthored")
+  notifications         Notification[]
 
   @@map("users")
 }
@@ -344,6 +345,7 @@ model Order {
   deliveryAddress CompanyAddress @relation(fields: [companyId, deliveryAddressId], references: [companyId, id], onDelete: Restrict)
   items           OrderItem[]
   couponUsage     CouponUsage?
+  notifications   Notification[]
 
   @@index([userId])
   @@index([companyId])
@@ -387,6 +389,7 @@ model Company {
   registrationRequest CompanyRegistrationRequest?
   cart                Cart?
   supportTickets      SupportTicket[]
+  notifications       Notification[]
 
   @@map("companies")
 }
@@ -812,4 +815,38 @@ model SectionItem {
   @@unique([sectionId, productId])
   @@unique([sectionId, comboId])
   @@map("section_items")
+}
+
+// ============================================
+// NOTIFICATIONS (T-22a)
+// ============================================
+
+enum NotificationType {
+  ORDER_STATUS
+}
+
+// Notificación de un usuario (dropdown de la campana). `message` se guarda ya
+// redactado en español al crearla (foto del momento). Defaults en BD para
+// poder insertar a mano.
+model Notification {
+  id          String           @id @default(dbgenerated("(gen_random_uuid())::text"))
+  userId      String           @map("user_id")
+  companyId   String?          @map("company_id")
+  type        NotificationType
+  message     String
+  link        String?
+  orderId     String?          @map("order_id")
+  orderStatus OrderStatus?     @map("order_status")
+  readAt      DateTime?        @map("read_at")
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  order   Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+  @@index([orderId])
+  @@index([companyId])
+  @@map("notifications")
 }

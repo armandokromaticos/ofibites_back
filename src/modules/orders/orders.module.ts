@@ -4,6 +4,7 @@ import { CouponsModule } from "../coupons/coupons.module";
 import { BranchesModule } from "../branches/branches.module";
 import { DepartmentsModule } from "../departments/departments.module";
 import { CompanyAddressesModule } from "../company-addresses/company-addresses.module";
+import { NotificationsModule } from "../notifications/notifications.module";
 import { OrdersController } from "./controllers/orders.controller";
 import { ORDER_REPOSITORY } from "../../core/domain/repositories/order.repository.interface";
 import { OrderRepository } from "../../core/infrastructure/repositories/order.repository";
@@ -36,6 +37,7 @@ import { RepeatOrderUseCase } from "../../core/application/use-cases/orders/repe
     BranchesModule,
     DepartmentsModule,
     CompanyAddressesModule,
+    NotificationsModule,
   ],
   controllers: [OrdersController],
   providers: [

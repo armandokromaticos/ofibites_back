@@ -1,16 +1,11 @@
-import {
-  ForbiddenException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from "@nestjs/common";
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import type { IOrderRepository } from "../../../domain/repositories/order.repository.interface";
 import { ORDER_REPOSITORY } from "../../../domain/repositories/order.repository.interface";
 import type { ICompanyMemberRepository } from "../../../domain/repositories/company-member.repository.interface";
 import { COMPANY_MEMBER_REPOSITORY } from "../../../domain/repositories/company-member.repository.interface";
 import { OrderEntity } from "../../../domain/entities/order.entity";
 import { Role } from "../../../domain/enums/role.enum";
-import { PLATFORM_ORDER_READ_ROLES } from "../../shared/platform-roles.constants";
+import { assertCanReadOrder } from "../../shared/order-read-access";
 
 @Injectable()
 export class GetOrderUseCase {
@@ -34,33 +29,9 @@ export class GetOrderUseCase {
       throw new NotFoundException(`Order with id ${orderId} not found`);
     }
 
-    await this.assertCanRead(order, userId, userRole);
+    await assertCanReadOrder(order, userId, userRole, {
+      companyMemberRepository: this.companyMemberRepository,
+    });
     return order;
-  }
-
-  private async assertCanRead(
-    order: OrderEntity,
-    userId: string,
-    userRole: Role,
-  ): Promise<void> {
-    if (PLATFORM_ORDER_READ_ROLES.has(userRole)) {
-      return;
-    }
-
-    // Role.CLIENT
-    if (order.userId === userId) {
-      return;
-    }
-    if (order.companyId) {
-      const member =
-        await this.companyMemberRepository.findActiveByUserAndCompany(
-          userId,
-          order.companyId,
-        );
-      if (member) {
-        return;
-      }
-    }
-    throw new ForbiddenException("No tienes acceso a esta orden");
   }
 }
