@@ -10,12 +10,14 @@ import { ORDER_REPOSITORY } from "../../../domain/repositories/order.repository.
 import { OrderEntity } from "../../../domain/entities/order.entity";
 import { OrderStatus } from "../../../domain/enums/order-status.enum";
 import { Role } from "../../../domain/enums/role.enum";
+import { OrderStatusNotificationService } from "../../services/order-status-notification.service";
 
 @Injectable()
 export class CancelOrderUseCase {
   constructor(
     @Inject(ORDER_REPOSITORY)
     private readonly orderRepository: IOrderRepository,
+    private readonly orderStatusNotifications: OrderStatusNotificationService,
   ) {}
 
   async execute(
@@ -41,6 +43,12 @@ export class CancelOrderUseCase {
       );
     }
 
-    return this.orderRepository.updateStatus(orderId, OrderStatus.CANCELLED);
+    const updated = await this.orderRepository.updateStatus(
+      orderId,
+      OrderStatus.CANCELLED,
+    );
+    // No lanza. Si cancela el propio dueño del pedido no se le notifica.
+    await this.orderStatusNotifications.notifyStatusChange(updated, userId);
+    return updated;
   }
 }

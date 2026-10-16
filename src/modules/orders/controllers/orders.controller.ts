@@ -107,8 +107,13 @@ export class OrdersController {
   async updateStatus(
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: UpdateOrderStatusDto,
+    @CurrentUser() user: { id: string },
   ): Promise<OrderResponseDto> {
-    const entity = await this.updateOrderStatusUseCase.execute(id, dto.status);
+    const entity = await this.updateOrderStatusUseCase.execute(
+      id,
+      dto.status,
+      user.id,
+    );
     return entity.toResponseDto();
   }
 
