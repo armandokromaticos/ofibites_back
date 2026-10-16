@@ -23,6 +23,9 @@ import { AddCartItemUseCase } from "../../core/application/use-cases/cart/add-ca
 import { UpdateCartItemUseCase } from "../../core/application/use-cases/cart/update-cart-item.use-case";
 import { RemoveCartItemUseCase } from "../../core/application/use-cases/cart/remove-cart-item.use-case";
 import { ClearCartUseCase } from "../../core/application/use-cases/cart/clear-cart.use-case";
+import { RepeatOrderIntoCartUseCase } from "../../core/application/use-cases/cart/repeat-order-into-cart.use-case";
+import { ORDER_REPOSITORY } from "../../core/domain/repositories/order.repository.interface";
+import { OrderRepository } from "../../core/infrastructure/repositories/order.repository";
 
 @Module({
   imports: [AuthModule],
@@ -41,6 +44,8 @@ import { ClearCartUseCase } from "../../core/application/use-cases/cart/clear-ca
     },
     { provide: COMBO_REPOSITORY, useClass: ComboRepository },
     { provide: COMPANY_REPOSITORY, useClass: CompanyRepository },
+    // COMPANY_MEMBER_REPOSITORY lo exporta AuthModule.
+    { provide: ORDER_REPOSITORY, useClass: OrderRepository },
     LineItemPricingService,
     LineItemAvailabilityService,
     CartViewService,
@@ -49,6 +54,7 @@ import { ClearCartUseCase } from "../../core/application/use-cases/cart/clear-ca
     UpdateCartItemUseCase,
     RemoveCartItemUseCase,
     ClearCartUseCase,
+    RepeatOrderIntoCartUseCase,
   ],
 })
 export class CartModule {}

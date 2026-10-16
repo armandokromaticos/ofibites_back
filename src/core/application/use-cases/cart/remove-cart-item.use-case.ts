@@ -3,6 +3,7 @@ import type { ICartRepository } from "../../../domain/repositories/cart.reposito
 import { CART_REPOSITORY } from "../../../domain/repositories/cart.repository.interface";
 import { CartViewService } from "../../services/cart-view.service";
 import { CartResponseDto } from "../../dto/cart/cart-response.dto";
+import { Lang } from "../../../domain/enums/lang.enum";
 
 @Injectable()
 export class RemoveCartItemUseCase {
@@ -12,7 +13,11 @@ export class RemoveCartItemUseCase {
     private readonly cartView: CartViewService,
   ) {}
 
-  async execute(companyId: string, itemId: string): Promise<CartResponseDto> {
+  async execute(
+    companyId: string,
+    itemId: string,
+    lang: Lang = Lang.ES,
+  ): Promise<CartResponseDto> {
     const cart = await this.cartRepository.getOrCreateByCompanyId(companyId);
     const item = cart.items.find((cartItem) => cartItem.id === itemId);
     if (!item) {
@@ -22,6 +27,6 @@ export class RemoveCartItemUseCase {
     }
 
     await this.cartRepository.removeItem(itemId);
-    return this.cartView.build(companyId);
+    return this.cartView.build(companyId, lang);
   }
 }

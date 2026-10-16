@@ -9,6 +9,7 @@ import { CartViewService } from "../../services/cart-view.service";
 import { assertCompanyActive } from "../../shared/company-active.guard";
 import { AddCartItemDto } from "../../dto/cart/add-cart-item.dto";
 import { CartResponseDto } from "../../dto/cart/cart-response.dto";
+import { Lang } from "../../../domain/enums/lang.enum";
 
 @Injectable()
 export class AddCartItemUseCase {
@@ -26,6 +27,7 @@ export class AddCartItemUseCase {
     companyId: string,
     userId: string,
     dto: AddCartItemDto,
+    lang: Lang = Lang.ES,
   ): Promise<CartResponseDto> {
     await assertCompanyActive(companyId, {
       companyRepository: this.companyRepository,
@@ -73,6 +75,6 @@ export class AddCartItemUseCase {
       });
     }
 
-    return this.cartView.build(companyId);
+    return this.cartView.build(companyId, lang);
   }
 }

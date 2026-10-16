@@ -15,6 +15,40 @@ export class CartItemResponseDto {
   @ApiProperty()
   productId: string;
 
+  @ApiProperty({
+    description:
+      "Nombre del combo (si hay comboId) o del producto, en `lang`. Se devuelve aunque esté inactivo.",
+  })
+  name: string;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description:
+      "Imagen principal del combo o del producto (la de GET /catalog)",
+  })
+  image: string | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description: "Nombre del tamaño en `lang`",
+  })
+  sizeLabel: string | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: Number,
+    description: "Personas del tamaño (ProductSize.servings)",
+  })
+  servings: number | null;
+
+  @ApiProperty({
+    description:
+      "Si la línea se podría añadir hoy (reglas de POST /cart/items). Informativo: el carrito la sigue cotizando.",
+  })
+  isAvailable: boolean;
+
   @ApiPropertyOptional({ nullable: true, type: String })
   productSizeId: string | null;
 

@@ -3,6 +3,8 @@ import type { ICartRepository } from "../../domain/repositories/cart.repository.
 import { CART_REPOSITORY } from "../../domain/repositories/cart.repository.interface";
 import { CartEntity } from "../../domain/entities/cart.entity";
 import { LineItemPricingService } from "./line-item-pricing.service";
+import { Lang } from "../../domain/enums/lang.enum";
+import { localized } from "../use-cases/catalog/catalog-entry.mapper";
 import {
   CartItemResponseDto,
   CartResponseDto,
@@ -21,12 +23,19 @@ export class CartViewService {
     private readonly lineItemPricingService: LineItemPricingService,
   ) {}
 
-  async build(companyId: string): Promise<CartResponseDto> {
-    const cart = await this.cartRepository.getOrCreateByCompanyId(companyId);
-    return this.toResponse(cart);
+  async build(
+    companyId: string,
+    lang: Lang = Lang.ES,
+  ): Promise<CartResponseDto> {
+    const cart =
+      await this.cartRepository.getOrCreateViewByCompanyId(companyId);
+    return this.toResponse(cart, lang);
   }
 
-  private async toResponse(cart: CartEntity): Promise<CartResponseDto> {
+  private async toResponse(
+    cart: CartEntity,
+    lang: Lang,
+  ): Promise<CartResponseDto> {
     const pricedItems = await Promise.all(
       cart.items.map((item) =>
         this.lineItemPricingService.priceLineItem({
@@ -52,6 +61,16 @@ export class CartViewService {
       const itemDto = new CartItemResponseDto();
       itemDto.id = item.id;
       itemDto.productId = item.productId;
+      const display = item.display;
+      itemDto.name = display
+        ? localized(lang, display.nameEs, display.nameEn)
+        : "";
+      itemDto.image = display?.image ?? null;
+      itemDto.sizeLabel = display?.sizeNameEs
+        ? localized(lang, display.sizeNameEs, display.sizeNameEn)
+        : null;
+      itemDto.servings = display?.servings ?? null;
+      itemDto.isAvailable = display?.isAvailable ?? true;
       itemDto.productSizeId = item.productSizeId;
       itemDto.comboId = item.comboId;
       itemDto.quantity = item.quantity;
