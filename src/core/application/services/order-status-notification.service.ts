@@ -49,11 +49,15 @@ export function formatDeliveryDate(deliveryDate: Date | null): string | null {
 
 /** Texto en español de la notificación según el estado destino; null si ese estado no se notifica. */
 export function buildOrderStatusMessage(
-  order: Pick<OrderEntity, "id" | "deliveryDate" | "deliveryTime">,
+  order: Pick<
+    OrderEntity,
+    "id" | "orderNumber" | "deliveryDate" | "deliveryTime"
+  >,
   status: OrderStatus,
 ): string | null {
   if (!order.id) return null;
-  const pedido = `#${toOrderNumber(order.id)}`;
+  // Número real OF-AAAA-NNNN; los pedidos sin backfill caen a los últimos 8 del id.
+  const pedido = `#${order.orderNumber ?? toOrderNumber(order.id)}`;
   const hora = formatDeliveryTime(order.deliveryTime);
   const fecha = formatDeliveryDate(order.deliveryDate);
 

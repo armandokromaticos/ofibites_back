@@ -11,6 +11,32 @@ export function toCaracasDateKey(date: Date): string {
   return shifted.toISOString().slice(0, 10);
 }
 
+/** Año calendario del instante en hora de Caracas (para `OF-AAAA-NNNN`). */
+export function caracasYear(date: Date = new Date()): number {
+  return new Date(
+    date.getTime() + CARACAS_OFFSET_MINUTES * MS_PER_MINUTE,
+  ).getUTCFullYear();
+}
+
+/** Minutos transcurridos desde la medianoche de Caracas (0..1439). */
+export function caracasMinutesOfDay(date: Date = new Date()): number {
+  const shifted = new Date(
+    date.getTime() + CARACAS_OFFSET_MINUTES * MS_PER_MINUTE,
+  );
+  return shifted.getUTCHours() * 60 + shifted.getUTCMinutes();
+}
+
+/** "YYYY-MM-DD" de Caracas desplazado `days` días (hoy = 0, mañana = 1). */
+export function caracasDateKeyPlusDays(
+  days: number,
+  now: Date = new Date(),
+): string {
+  const todayUtc = Date.parse(`${toCaracasDateKey(now)}T00:00:00.000Z`);
+  return new Date(todayUtc + days * 24 * 60 * MS_PER_MINUTE)
+    .toISOString()
+    .slice(0, 10);
+}
+
 /**
  * Rango [monthStart, monthEnd) del mes calendario actual en Caracas,
  * como instantes UTC listos para usar en filtros de Prisma.

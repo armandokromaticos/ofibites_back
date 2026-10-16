@@ -48,9 +48,14 @@ export class OrdersController {
     private readonly repeatOrderUseCase: RepeatOrderUseCase,
   ) {}
 
+  // Solo plataforma: los clientes crean pedidos por POST /orders/checkout
+  // (decisión del usuario 2026-10-16, T-26a).
   @Post()
-  @Roles(Role.SUPER_ADMIN, Role.OPS_ADMIN, Role.CLIENT)
-  @ApiOperation({ summary: "Crear orden con items" })
+  @Roles(Role.SUPER_ADMIN, Role.OPS_ADMIN)
+  @ApiOperation({
+    summary:
+      "Crear orden con items (SUPER_ADMIN / OPS_ADMIN). Los clientes usan POST /orders/checkout",
+  })
   async createOrder(
     @Body() dto: CreateOrderDto,
     @CurrentUser() user: { id: string; role: Role },
@@ -132,11 +137,13 @@ export class OrdersController {
     return entity.toResponseDto();
   }
 
+  // Solo plataforma: un cliente repite con POST /cart/repeat/:orderId y confirma
+  // en el checkout (decisión del usuario 2026-10-16, T-26a).
   @Post(":id/repeat")
-  @Roles(Role.SUPER_ADMIN, Role.OPS_ADMIN, Role.CLIENT)
+  @Roles(Role.SUPER_ADMIN, Role.OPS_ADMIN)
   @ApiOperation({
     summary:
-      "Repetir un pedido: re-precia al catálogo actual y omite productos no disponibles",
+      "Repetir un pedido (SUPER_ADMIN / OPS_ADMIN): re-precia al catálogo actual y omite productos no disponibles. Los clientes usan POST /cart/repeat/:orderId + POST /orders/checkout",
   })
   async repeatOrder(
     @Param("id", ParseUUIDPipe) id: string,

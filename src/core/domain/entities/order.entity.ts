@@ -15,10 +15,27 @@ import {
 import { OrderStateMachine } from "../services/order-state-machine";
 import { Money } from "../value-objects/money.vo";
 
-type PrismaOrderWithRelations = PrismaOrder & {
+// Las columnas del checkout son opcionales para aceptar filas parciales (fixtures).
+type CheckoutOrderColumns =
+  | "tax"
+  | "shipping"
+  | "orderNumber"
+  | "receiverName"
+  | "receiverPhone"
+  | "addressDetail"
+  | "addressReference";
+
+type PrismaOrderWithRelations = Omit<PrismaOrder, CheckoutOrderColumns> & {
   couponId?: string | null;
   subtotal?: Decimal;
   discount?: Decimal;
+  tax?: Decimal;
+  shipping?: Decimal;
+  orderNumber?: string | null;
+  receiverName?: string | null;
+  receiverPhone?: string | null;
+  addressDetail?: string | null;
+  addressReference?: string | null;
   items?: (PrismaOrderItem & {
     modifiers?: PrismaOrderItemModifier[];
   })[];
@@ -57,7 +74,14 @@ interface OrderProps {
   status: OrderStatus;
   subtotal: number;
   discount: number;
+  tax: number;
+  shipping: number;
   total: number;
+  orderNumber: string | null;
+  receiverName: string | null;
+  receiverPhone: string | null;
+  addressDetail: string | null;
+  addressReference: string | null;
   createdAt: Date;
   updatedAt: Date;
   items?: OrderItemInfo[];
@@ -92,7 +116,14 @@ export interface CreateOrderParams {
   priority?: OrderPriority;
   subtotal: number;
   discount: number;
+  /** IVA y envío (checkout). Por defecto 0, como los pedidos de POST /orders. */
+  tax?: number;
+  shipping?: number;
   total: number;
+  receiverName?: string;
+  receiverPhone?: string;
+  addressDetail?: string;
+  addressReference?: string;
   items: CreateOrderItemParams[];
 }
 
@@ -152,6 +183,28 @@ export class OrderEntity {
   get total(): number {
     return this.props.total;
   }
+  get tax(): number {
+    return this.props.tax;
+  }
+  get shipping(): number {
+    return this.props.shipping;
+  }
+  /** OF-AAAA-NNNN; null solo en pedidos sin backfill o aún no persistidos. */
+  get orderNumber(): string | null {
+    return this.props.orderNumber;
+  }
+  get receiverName(): string | null {
+    return this.props.receiverName;
+  }
+  get receiverPhone(): string | null {
+    return this.props.receiverPhone;
+  }
+  get addressDetail(): string | null {
+    return this.props.addressDetail;
+  }
+  get addressReference(): string | null {
+    return this.props.addressReference;
+  }
   get createdAt(): Date {
     return this.props.createdAt;
   }
@@ -206,7 +259,15 @@ export class OrderEntity {
       status: OrderStatus.CREATED,
       subtotal: params.subtotal,
       discount: params.discount,
+      tax: params.tax ?? 0,
+      shipping: params.shipping ?? 0,
       total: params.total,
+      // Lo asigna el repositorio dentro de la transacción de creación.
+      orderNumber: null,
+      receiverName: params.receiverName ?? null,
+      receiverPhone: params.receiverPhone ?? null,
+      addressDetail: params.addressDetail ?? null,
+      addressReference: params.addressReference ?? null,
       createdAt: new Date(),
       updatedAt: new Date(),
       items: params.items.map((item) => ({
@@ -226,12 +287,20 @@ export class OrderEntity {
     });
   }
 
-  toPrismaCreate(): Prisma.OrderCreateInput {
+  /** `orderNumber` lo genera el repositorio (contador por año, en la transacción). */
+  toPrismaCreate(orderNumber?: string): Prisma.OrderCreateInput {
     const data: Prisma.OrderCreateInput = {
       priority: this.props.priority,
       subtotal: new Prisma.Decimal(this.props.subtotal),
       discount: new Prisma.Decimal(this.props.discount),
+      tax: new Prisma.Decimal(this.props.tax),
+      shipping: new Prisma.Decimal(this.props.shipping),
       total: new Prisma.Decimal(this.props.total),
+      orderNumber: orderNumber ?? this.props.orderNumber,
+      receiverName: this.props.receiverName,
+      receiverPhone: this.props.receiverPhone,
+      addressDetail: this.props.addressDetail,
+      addressReference: this.props.addressReference,
       deliveryDate: this.props.deliveryDate,
       deliveryTime: this.props.deliveryTime,
       notes: this.props.notes,
@@ -312,7 +381,14 @@ export class OrderEntity {
       status: prisma.status as OrderStatus,
       subtotal: Number(prisma.subtotal ?? prisma.total),
       discount: Number(prisma.discount ?? 0),
+      tax: Number(prisma.tax ?? 0),
+      shipping: Number(prisma.shipping ?? 0),
       total: Number(prisma.total),
+      orderNumber: prisma.orderNumber ?? null,
+      receiverName: prisma.receiverName ?? null,
+      receiverPhone: prisma.receiverPhone ?? null,
+      addressDetail: prisma.addressDetail ?? null,
+      addressReference: prisma.addressReference ?? null,
       createdAt: prisma.createdAt,
       updatedAt: prisma.updatedAt,
     };
@@ -358,7 +434,14 @@ export class OrderEntity {
     dto.status = this.props.status;
     dto.subtotal = maskPrices ? null : this.props.subtotal;
     dto.discount = maskPrices ? null : this.props.discount;
+    dto.tax = maskPrices ? null : this.props.tax;
+    dto.shipping = maskPrices ? null : this.props.shipping;
     dto.total = maskPrices ? null : this.props.total;
+    dto.orderNumber = this.props.orderNumber;
+    dto.receiverName = this.props.receiverName;
+    dto.receiverPhone = this.props.receiverPhone;
+    dto.addressDetail = this.props.addressDetail;
+    dto.addressReference = this.props.addressReference;
     dto.createdAt = this.props.createdAt;
     dto.updatedAt = this.props.updatedAt;
 

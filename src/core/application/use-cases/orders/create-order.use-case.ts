@@ -68,21 +68,8 @@ export class CreateOrderUseCase {
       await this.lineItemAvailability.assertAvailable(itemDto);
     }
 
-    const pricedItems = await Promise.all(
-      dto.items.map((itemDto) =>
-        this.lineItemPricingService.priceLineItem(itemDto),
-      ),
-    );
-
-    const items: CreateOrderItemParams[] = dto.items.map((itemDto, index) => ({
-      productId: itemDto.productId,
-      productSizeId: itemDto.productSizeId,
-      comboId: itemDto.comboId,
-      quantity: itemDto.quantity,
-      unitPrice: pricedItems[index].unitPrice,
-      subtotal: pricedItems[index].subtotal,
-      modifiers: pricedItems[index].modifiers,
-    }));
+    const items: CreateOrderItemParams[] =
+      await this.lineItemPricingService.priceOrderLines(dto.items);
 
     const subtotal =
       Math.round(items.reduce((sum, item) => sum + item.subtotal, 0) * 100) /

@@ -14,7 +14,7 @@ import { CreateOrderDto } from "../../dto/orders/create-order.dto";
 
 function setup(availabilityError?: Error) {
   const orderRepository = { create: jest.fn() };
-  const pricing = { priceLineItem: jest.fn() };
+  const pricing = { priceOrderLines: jest.fn() };
   const availability = {
     assertAvailable: jest.fn(() =>
       availabilityError ? Promise.reject(availabilityError) : Promise.resolve(),
@@ -61,13 +61,13 @@ describe("CreateOrderUseCase · disponibilidad del catálogo", () => {
       useCase.execute("user-1", Role.SUPER_ADMIN, dto),
     ).rejects.toThrow(message);
     expect(availability.assertAvailable).toHaveBeenCalledWith(dto.items[0]);
-    expect(pricing.priceLineItem).not.toHaveBeenCalled();
+    expect(pricing.priceOrderLines).not.toHaveBeenCalled();
     expect(orderRepository.create).not.toHaveBeenCalled();
   });
 
   it("valida cada línea antes de cotizar", async () => {
     const { useCase, pricing, availability } = setup();
-    pricing.priceLineItem.mockRejectedValue(new Error("corte del test"));
+    pricing.priceOrderLines.mockRejectedValue(new Error("corte del test"));
 
     await expect(
       useCase.execute("user-1", Role.SUPER_ADMIN, dto),

@@ -9,6 +9,7 @@ import {
   CartItemResponseDto,
   CartResponseDto,
 } from "../dto/cart/cart-response.dto";
+import { buildOrderSummary } from "../shared/order-summary.config";
 
 /**
  * Carga el carrito de la empresa y arma la respuesta recalculando precios
@@ -49,13 +50,11 @@ export class CartViewService {
     );
 
     const items: CartItemResponseDto[] = [];
-    let subtotal = 0;
     let totalUnits = 0;
 
     cart.items.forEach((item, index) => {
       const priced = pricedItems[index];
 
-      subtotal = Math.round((subtotal + priced.subtotal) * 100) / 100;
       totalUnits += item.quantity;
 
       const itemDto = new CartItemResponseDto();
@@ -88,7 +87,9 @@ export class CartViewService {
     dto.id = cart.id;
     dto.companyId = cart.companyId;
     dto.items = items;
-    dto.subtotal = subtotal;
+    dto.summary = buildOrderSummary(pricedItems.map((p) => p.subtotal));
+    // Mismo valor que summary.subtotal (sumado en céntimos).
+    dto.subtotal = dto.summary.subtotal;
     dto.totalUnits = totalUnits;
     dto.createdAt = cart.createdAt;
     dto.updatedAt = cart.updatedAt;

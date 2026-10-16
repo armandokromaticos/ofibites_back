@@ -6,6 +6,10 @@ import { DepartmentsModule } from "../departments/departments.module";
 import { CompanyAddressesModule } from "../company-addresses/company-addresses.module";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { OrdersController } from "./controllers/orders.controller";
+import { CheckoutController } from "./controllers/checkout.controller";
+import { CART_REPOSITORY } from "../../core/domain/repositories/cart.repository.interface";
+import { CartRepository } from "../../core/infrastructure/repositories/cart.repository";
+import { CheckoutOrderUseCase } from "../../core/application/use-cases/orders/checkout-order.use-case";
 import { ORDER_REPOSITORY } from "../../core/domain/repositories/order.repository.interface";
 import { OrderRepository } from "../../core/infrastructure/repositories/order.repository";
 import { PRODUCT_REPOSITORY } from "../../core/domain/repositories/product.repository.interface";
@@ -39,9 +43,10 @@ import { RepeatOrderUseCase } from "../../core/application/use-cases/orders/repe
     CompanyAddressesModule,
     NotificationsModule,
   ],
-  controllers: [OrdersController],
+  controllers: [OrdersController, CheckoutController],
   providers: [
     { provide: ORDER_REPOSITORY, useClass: OrderRepository },
+    { provide: CART_REPOSITORY, useClass: CartRepository },
     { provide: PRODUCT_REPOSITORY, useClass: ProductRepository },
     { provide: PRODUCT_SIZE_REPOSITORY, useClass: ProductSizeRepository },
     {
@@ -63,6 +68,7 @@ import { RepeatOrderUseCase } from "../../core/application/use-cases/orders/repe
     CancelOrderUseCase,
     UpdateOrderStatusUseCase,
     RepeatOrderUseCase,
+    CheckoutOrderUseCase,
   ],
 })
 export class OrdersModule {}

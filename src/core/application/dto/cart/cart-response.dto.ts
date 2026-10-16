@@ -78,6 +78,39 @@ export class CartItemResponseDto {
   modifiers: CartItemModifierResponseDto[];
 }
 
+export class CartSummaryResponseDto {
+  @ApiProperty({ example: 120.5, description: "Suma de las líneas" })
+  subtotal: number;
+
+  @ApiProperty({ example: 0, description: "Descuento (0 en la fase 1)" })
+  discount: number;
+
+  @ApiProperty({ example: 0.16, description: "Tasa de IVA" })
+  taxRate: number;
+
+  @ApiProperty({
+    example: 19.28,
+    description: "(subtotal − discount) × taxRate, redondeado al céntimo",
+  })
+  tax: number;
+
+  @ApiProperty({
+    example: 5,
+    description:
+      "0 si (subtotal − discount) ≥ freeShippingThreshold o el carrito está vacío; si no, SHIPPING_FLAT_FEE",
+  })
+  shipping: number;
+
+  @ApiProperty({ example: 150 })
+  freeShippingThreshold: number;
+
+  @ApiProperty({
+    example: 144.78,
+    description: "subtotal − discount + tax + shipping",
+  })
+  total: number;
+}
+
 export class CartResponseDto {
   @ApiProperty()
   id: string;
@@ -93,6 +126,13 @@ export class CartResponseDto {
 
   @ApiProperty({ description: "Cantidad total de unidades en el carrito" })
   totalUnits: number;
+
+  @ApiProperty({
+    type: () => CartSummaryResponseDto,
+    description:
+      "Importes calculados en el servidor (IVA, envío, total). Son los que usa POST /orders/checkout",
+  })
+  summary: CartSummaryResponseDto;
 
   @ApiProperty()
   createdAt: Date;

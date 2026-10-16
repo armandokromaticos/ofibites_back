@@ -5,6 +5,8 @@ import { NotificationResponseDto } from "../../application/dto/notifications/not
 
 interface NotificationProps {
   id: string | undefined;
+  /** `Order.orderNumber` si la fila se cargó con el pedido. */
+  orderNumber?: string | null;
   userId: string;
   companyId: string | null;
   type: NotificationType;
@@ -25,9 +27,9 @@ export interface CreateOrderStatusNotificationParams {
 }
 
 /**
- * Número legible del pedido: los últimos 8 caracteres del id en mayúsculas.
- * Es el mismo que muestra el front (`order.id.slice(-8).toUpperCase()`); no
- * existe una columna de número de pedido.
+ * Respaldo del número del pedido: los últimos 8 caracteres del id en
+ * mayúsculas. Solo para pedidos sin `Order.orderNumber` (anteriores al
+ * backfill de T-26a).
  */
 export function toOrderNumber(orderId: string): string {
   return orderId.slice(-8).toUpperCase();
@@ -79,9 +81,12 @@ export class NotificationEntity {
     return this.props.readAt !== null;
   }
 
-  static fromPrisma(row: PrismaNotification): NotificationEntity {
+  static fromPrisma(
+    row: PrismaNotification & { order?: { orderNumber: string | null } | null },
+  ): NotificationEntity {
     return new NotificationEntity({
       id: row.id,
+      orderNumber: row.order?.orderNumber ?? null,
       userId: row.userId,
       companyId: row.companyId,
       type: row.type as NotificationType,
@@ -135,7 +140,7 @@ export class NotificationEntity {
     dto.link = this.props.link;
     dto.orderId = this.props.orderId;
     dto.orderNumber = this.props.orderId
-      ? toOrderNumber(this.props.orderId)
+      ? (this.props.orderNumber ?? toOrderNumber(this.props.orderId))
       : null;
     dto.orderStatus = this.props.orderStatus;
     dto.companyId = this.props.companyId;
