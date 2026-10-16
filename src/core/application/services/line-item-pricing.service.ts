@@ -14,6 +14,7 @@ import type { IProductModifierGroupRepository } from "../../domain/repositories/
 import { PRODUCT_MODIFIER_GROUP_REPOSITORY } from "../../domain/repositories/product-modifier-group.repository.interface";
 import type { IComboRepository } from "../../domain/repositories/combo.repository.interface";
 import { COMBO_REPOSITORY } from "../../domain/repositories/combo.repository.interface";
+import type { CreateOrderItemParams } from "../../domain/entities/order.entity";
 
 export interface LineItemInput {
   productId: string;
@@ -166,5 +167,26 @@ export class LineItemPricingService {
       Math.round((unitPrice + modifierTotal) * input.quantity * 100) / 100;
 
     return { unitPrice, subtotal, modifiers };
+  }
+
+  /**
+   * Cotiza varias líneas y las deja listas para `OrderEntity.fromCreateDto`
+   * (precio congelado en el pedido). Lo comparten `POST /orders` y el checkout.
+   */
+  async priceOrderLines(
+    inputs: LineItemInput[],
+  ): Promise<CreateOrderItemParams[]> {
+    const priced = await Promise.all(
+      inputs.map((input) => this.priceLineItem(input)),
+    );
+    return inputs.map((input, index) => ({
+      productId: input.productId,
+      productSizeId: input.productSizeId ?? undefined,
+      comboId: input.comboId ?? undefined,
+      quantity: input.quantity,
+      unitPrice: priced[index].unitPrice,
+      subtotal: priced[index].subtotal,
+      modifiers: priced[index].modifiers,
+    }));
   }
 }

@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  HttpException,
   Inject,
   Injectable,
   NotFoundException,
@@ -32,7 +31,10 @@ import {
   LineItemPricingService,
 } from "../../services/line-item-pricing.service";
 import { LineAvailabilityCode } from "../../../domain/services/line-availability";
-import { LineItemAvailabilityService } from "../../services/line-item-availability.service";
+import {
+  LineItemAvailabilityService,
+  resolveUnavailabilityCode,
+} from "../../services/line-item-availability.service";
 import { CartViewService } from "../../services/cart-view.service";
 import { assertCompanyActive } from "../../shared/company-active.guard";
 import { assertCanReadOrder } from "../../shared/order-read-access";
@@ -156,25 +158,15 @@ export class RepeatOrderIntoCartUseCase {
     return response;
   }
 
-  /**
-   * El `code` sale de la regla única. `priceLineItem` queda como red de
-   * seguridad (p. ej. el producto ancla de un combo que ya no existe, que la
-   * regla no mira): su 404 → NOT_FOUND y cualquier otro 4xx → CONFIGURATION,
-   * por tipo de excepción, sin leer mensajes.
-   */
-  private async unavailabilityCode(
+  /** Ver `resolveUnavailabilityCode` (regla única + red de seguridad del pricing). */
+  private unavailabilityCode(
     input: LineItemInput,
   ): Promise<LineAvailabilityCode | null> {
-    const found = await this.lineItemAvailability.check(input);
-    if (found) return found.code;
-    try {
-      await this.lineItemPricingService.priceLineItem(input);
-      return null;
-    } catch (error) {
-      if (error instanceof NotFoundException) return "NOT_FOUND";
-      if (error instanceof HttpException) return "CONFIGURATION";
-      throw error;
-    }
+    return resolveUnavailabilityCode(
+      this.lineItemAvailability,
+      this.lineItemPricingService,
+      input,
+    );
   }
 
   private async findOrder(

@@ -1,4 +1,10 @@
-import { BadRequestException, Inject, Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  HttpException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import type { IProductRepository } from "../../domain/repositories/product.repository.interface";
 import { PRODUCT_REPOSITORY } from "../../domain/repositories/product.repository.interface";
 import type { IProductSizeRepository } from "../../domain/repositories/product-size.repository.interface";
@@ -14,10 +20,39 @@ import {
 } from "../../domain/repositories/combo.repository.interface";
 import {
   evaluateLineAvailability,
+  LineAvailabilityCode,
   LineAvailabilityIssue,
   LineAvailabilitySnapshot,
 } from "../../domain/services/line-availability";
-import type { LineItemInput } from "./line-item-pricing.service";
+import type {
+  LineItemInput,
+  LineItemPricingService,
+} from "./line-item-pricing.service";
+
+/**
+ * Motivo por el que una línea **ya guardada** (carrito o pedido) no se puede
+ * pedir hoy, o null. El `code` sale de la regla única; `priceLineItem` queda
+ * como red de seguridad (p. ej. el producto ancla de un combo que ya no
+ * existe, que la regla no mira): su 404 → NOT_FOUND y cualquier otro 4xx →
+ * CONFIGURATION, por tipo de excepción, sin leer mensajes. Lo usan "repetir en
+ * el carrito" y el checkout.
+ */
+export async function resolveUnavailabilityCode(
+  availability: Pick<LineItemAvailabilityService, "check">,
+  pricing: Pick<LineItemPricingService, "priceLineItem">,
+  input: LineItemInput,
+): Promise<LineAvailabilityCode | null> {
+  const found = await availability.check(input);
+  if (found) return found.code;
+  try {
+    await pricing.priceLineItem(input);
+    return null;
+  } catch (error) {
+    if (error instanceof NotFoundException) return "NOT_FOUND";
+    if (error instanceof HttpException) return "CONFIGURATION";
+    throw error;
+  }
+}
 
 /**
  * Reglas de disponibilidad para **añadir** una línea (carrito), **crear** una

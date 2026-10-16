@@ -23,6 +23,7 @@ function order(
     userId?: string | null;
     deliveryTime?: string | null;
     deliveryDate?: Date | null;
+    orderNumber?: string | null;
   } = {},
 ): OrderEntity {
   return new OrderEntity({
@@ -45,7 +46,15 @@ function order(
     status,
     subtotal: 10,
     discount: 0,
+    tax: 0,
+    shipping: 0,
     total: 10,
+    // Por defecto sin número (pedido anterior al backfill): usa el respaldo.
+    orderNumber: overrides.orderNumber ?? null,
+    receiverName: null,
+    receiverPhone: null,
+    addressDetail: null,
+    addressReference: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     items: [],
@@ -145,6 +154,49 @@ describe("mensajes de cambio de estado", () => {
     expect(
       buildOrderStatusMessage(order(OrderStatus.CREATED), OrderStatus.CREATED),
     ).toBeNull();
+  });
+});
+
+describe("número del pedido en la notificación (T-26a)", () => {
+  it("usa el orderNumber real OF-AAAA-NNNN cuando existe", () => {
+    const o = order(OrderStatus.IN_TRANSIT, { orderNumber: "OF-2026-0042" });
+    expect(buildOrderStatusMessage(o, OrderStatus.IN_TRANSIT)).toBe(
+      "Tu pedido #OF-2026-0042 va en camino. Llega a las 10:30 am.",
+    );
+  });
+
+  it("sin orderNumber (pedido anterior al backfill) cae a los últimos 8 del id", () => {
+    const o = order(OrderStatus.DELIVERED, { orderNumber: null });
+    expect(buildOrderStatusMessage(o, OrderStatus.DELIVERED)).toBe(
+      "Tu pedido #7728950E fue entregado.",
+    );
+  });
+
+  it("la respuesta expone el orderNumber del pedido cargado, o el respaldo", () => {
+    const row = {
+      id: "n-1",
+      userId: "user-1",
+      companyId: "company-1",
+      type: "ORDER_STATUS",
+      message: "Tu pedido #OF-2026-0042 fue entregado.",
+      link: `/pedidos/${ORDER_ID}`,
+      orderId: ORDER_ID,
+      orderStatus: "DELIVERED",
+      readAt: null,
+      createdAt: new Date("2026-10-16T12:00:00.000Z"),
+    } as const;
+    expect(
+      NotificationEntity.fromPrisma({
+        ...row,
+        order: { orderNumber: "OF-2026-0042" },
+      }).toResponseDto().orderNumber,
+    ).toBe("OF-2026-0042");
+    expect(
+      NotificationEntity.fromPrisma({
+        ...row,
+        order: { orderNumber: null },
+      }).toResponseDto().orderNumber,
+    ).toBe("7728950E");
   });
 });
 

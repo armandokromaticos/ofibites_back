@@ -333,6 +333,17 @@ model Order {
   subtotal          Decimal       @default(0) @db.Decimal(10, 2)
   discount          Decimal       @default(0) @db.Decimal(10, 2)
   total             Decimal       @default(0) @db.Decimal(10, 2)
+  // T-26a (checkout): IVA y envío congelados al crear el pedido. Los pedidos
+  // anteriores al checkout quedan en 0 (su total era subtotal − descuento).
+  tax               Decimal       @default(0) @db.Decimal(10, 2)
+  shipping          Decimal       @default(0) @db.Decimal(10, 2)
+  // Número legible OF-AAAA-NNNN (secuencial por año de Caracas). Nullable solo
+  // por la migración: el backfill lo rellena y todo pedido nuevo lo recibe.
+  orderNumber       String?       @unique @map("order_number")
+  receiverName      String?       @map("receiver_name")
+  receiverPhone     String?       @map("receiver_phone")
+  addressDetail     String?       @map("address_detail")
+  addressReference  String?       @map("address_reference")
   createdAt         DateTime      @default(now()) @map("created_at")
   updatedAt         DateTime      @updatedAt @map("updated_at")
 
@@ -354,6 +365,17 @@ model Order {
   @@index([departmentId])
   @@index([deliveryAddressId])
   @@map("orders")
+}
+
+// Contador de Order.orderNumber por año de Caracas. Se incrementa con
+// INSERT ... ON CONFLICT DO UPDATE ... RETURNING dentro de la transacción que
+// crea el pedido: el bloqueo de fila serializa checkouts simultáneos y un
+// rollback no deja huecos (a diferencia de una SEQUENCE).
+model OrderNumberCounter {
+  year      Int @id
+  lastValue Int @default(0) @map("last_value")
+
+  @@map("order_number_counters")
 }
 
 // ============================================

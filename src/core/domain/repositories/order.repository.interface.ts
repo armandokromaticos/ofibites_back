@@ -19,8 +19,25 @@ export interface OrderListFilters {
   statuses?: OrderStatus[];
 }
 
+/** Líneas del carrito tal como se leyeron y tarificaron en el checkout. */
+export interface CheckoutCartSnapshot {
+  cartId: string;
+  items: { id: string; quantity: number }[];
+}
+
 export interface IOrderRepository {
+  /** Crea el pedido y le asigna `orderNumber` (OF-AAAA-NNNN) en una transacción. */
   create(entity: OrderEntity): Promise<OrderEntity>;
+  /**
+   * Checkout: en **una transacción** borra del carrito exactamente las líneas
+   * del snapshot (mismo id y cantidad), asigna `orderNumber` y crea el pedido.
+   * Si alguna línea ya no está igual lanza `CartChangedException` y no se
+   * escribe nada.
+   */
+  createFromCart(
+    entity: OrderEntity,
+    cart: CheckoutCartSnapshot,
+  ): Promise<OrderEntity>;
   findUnique(args: Prisma.OrderFindUniqueArgs): Promise<OrderEntity | null>;
   findMany(
     args?: Prisma.OrderFindManyArgs,

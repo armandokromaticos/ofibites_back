@@ -107,9 +107,54 @@ export class OrderResponseDto {
   @ApiProperty({
     nullable: true,
     type: Number,
-    description: "Oculto para roles sin acceso a precios",
+    description:
+      "IVA congelado al crear el pedido (0 en pedidos anteriores al checkout). Oculto para roles sin acceso a precios",
+  })
+  tax: number | null;
+
+  @ApiProperty({
+    nullable: true,
+    type: Number,
+    description:
+      "Envío congelado al crear el pedido (0 en pedidos anteriores al checkout). Oculto para roles sin acceso a precios",
+  })
+  shipping: number | null;
+
+  @ApiProperty({
+    nullable: true,
+    type: Number,
+    description:
+      "subtotal − discount + tax + shipping. Oculto para roles sin acceso a precios",
   })
   total: number | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    example: "OF-2026-0042",
+    description: "Número legible, secuencial por año de Caracas",
+  })
+  orderNumber: string | null;
+
+  @ApiPropertyOptional({ nullable: true, type: String })
+  receiverName: string | null;
+
+  @ApiPropertyOptional({ nullable: true, type: String })
+  receiverPhone: string | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description: "Piso / oficina",
+  })
+  addressDetail: string | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description: "Punto de referencia",
+  })
+  addressReference: string | null;
 
   @ApiProperty()
   createdAt: Date;
