@@ -5,6 +5,9 @@ import {
   ProductModifier as PrismaProductModifier,
   ModifierSizePrice as PrismaModifierSizePrice,
   Tag as PrismaTag,
+  ProductImage as PrismaProductImage,
+  ProductIngredient as PrismaProductIngredient,
+  Ingredient as PrismaIngredient,
   Prisma,
 } from "@prisma/client";
 import { CreateProductDto } from "../../application/dto/products/create-product.dto";
@@ -13,6 +16,7 @@ import { ProductSizeEntity } from "./product-size.entity";
 import { ProductModifierGroupEntity } from "./product-modifier-group.entity";
 import { ProductModifierEntity } from "./product-modifier.entity";
 import { TagEntity } from "./tag.entity";
+import { IngredientEntity } from "./ingredient.entity";
 
 type PrismaModifierWithTags = PrismaProductModifier & {
   tags?: { tag: PrismaTag }[];
@@ -25,7 +29,41 @@ type PrismaProductWithRelations = PrismaProduct & {
     modifiers: PrismaModifierWithTags[];
   })[];
   tags?: { tag: PrismaTag }[];
+  images?: PrismaProductImage[];
+  ingredients?: (PrismaProductIngredient & { ingredient: PrismaIngredient })[];
 };
+
+/**
+ * Información nutricional (por porción). Gramos salvo `energyKj`, `calories`,
+ * `cholesterolMg` y `sodiumMg`. Cada campo es opcional.
+ */
+export interface ProductNutrition {
+  energyKj: number | null;
+  calories: number | null;
+  fat: number | null;
+  saturatedFat: number | null;
+  carbohydrates: number | null;
+  sugar: number | null;
+  fiber: number | null;
+  cholesterolMg: number | null;
+  sodiumMg: number | null;
+}
+
+const EMPTY_NUTRITION: ProductNutrition = {
+  energyKj: null,
+  calories: null,
+  fat: null,
+  saturatedFat: null,
+  carbohydrates: null,
+  sugar: null,
+  fiber: null,
+  cholesterolMg: null,
+  sodiumMg: null,
+};
+
+function decimalOrNull(value: Prisma.Decimal | null): number | null {
+  return value === null ? null : Number(value);
+}
 
 interface ProductProps {
   id: string;
@@ -37,6 +75,9 @@ interface ProductProps {
   image: string | null;
   stock: number | null;
   isActive: boolean;
+  isFeatured: boolean;
+  isOnSale: boolean;
+  nutrition: ProductNutrition;
   createdAt: Date;
   updatedAt: Date;
   sizes?: ProductSizeEntity[];
@@ -45,6 +86,10 @@ interface ProductProps {
     modifiers: ProductModifierEntity[];
   }[];
   tags?: TagEntity[];
+  /** URLs de la galería (`ProductImage`) ordenadas por `sortOrder`. */
+  galleryImages?: string[];
+  /** Ingredientes en el orden de `ProductIngredient.sortOrder`. */
+  ingredients?: IngredientEntity[];
 }
 
 export class ProductEntity {
@@ -92,6 +137,47 @@ export class ProductEntity {
   get isActive(): boolean {
     return this.props.isActive;
   }
+  get isFeatured(): boolean {
+    return this.props.isFeatured;
+  }
+  get isOnSale(): boolean {
+    return this.props.isOnSale;
+  }
+  get sizes(): ProductSizeEntity[] | undefined {
+    return this.props.sizes;
+  }
+  get tags(): TagEntity[] | undefined {
+    return this.props.tags;
+  }
+  get nutrition(): ProductNutrition {
+    return { ...this.props.nutrition };
+  }
+  /** `true` si hay al menos un dato nutricional cargado. */
+  get hasNutrition(): boolean {
+    return Object.values(this.props.nutrition).some((value) => value !== null);
+  }
+  get galleryImages(): string[] | undefined {
+    return this.props.galleryImages;
+  }
+  get ingredients(): IngredientEntity[] | undefined {
+    return this.props.ingredients;
+  }
+
+  /**
+   * Rango de precio que verá el cliente: el precio de un tamaño reemplaza al
+   * precio base (igual que `LineItemPricingService`), así que con tamaños
+   * activos el rango es su mínimo y máximo; sin ellos, el precio base.
+   * Requiere haber cargado `sizes`; si no se cargaron, usa el precio base.
+   */
+  get priceRange(): { min: number; max: number } {
+    const prices = (this.props.sizes ?? [])
+      .filter((size) => size.isActive)
+      .map((size) => size.price);
+    if (prices.length === 0) {
+      return { min: this.props.basePrice, max: this.props.basePrice };
+    }
+    return { min: Math.min(...prices), max: Math.max(...prices) };
+  }
   get createdAt(): Date {
     return this.props.createdAt;
   }
@@ -110,6 +196,19 @@ export class ProductEntity {
       image: prisma.image,
       stock: prisma.stock,
       isActive: prisma.isActive,
+      isFeatured: prisma.isFeatured,
+      isOnSale: prisma.isOnSale,
+      nutrition: {
+        energyKj: prisma.energyKj,
+        calories: prisma.calories,
+        fat: decimalOrNull(prisma.fat),
+        saturatedFat: decimalOrNull(prisma.saturatedFat),
+        carbohydrates: decimalOrNull(prisma.carbohydrates),
+        sugar: decimalOrNull(prisma.sugar),
+        fiber: decimalOrNull(prisma.fiber),
+        cholesterolMg: prisma.cholesterolMg,
+        sodiumMg: prisma.sodiumMg,
+      },
       createdAt: prisma.createdAt,
       updatedAt: prisma.updatedAt,
     };
@@ -133,6 +232,18 @@ export class ProductEntity {
       props.tags = prisma.tags.map((pt) => TagEntity.fromPrisma(pt.tag));
     }
 
+    if (prisma.images) {
+      props.galleryImages = [...prisma.images]
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((image) => image.url);
+    }
+
+    if (prisma.ingredients) {
+      props.ingredients = [...prisma.ingredients]
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((pi) => IngredientEntity.fromPrisma(pi.ingredient));
+    }
+
     return new ProductEntity(props);
   }
 
@@ -147,6 +258,9 @@ export class ProductEntity {
       image: dto.image ?? null,
       stock: dto.stock ?? null,
       isActive: dto.isActive ?? true,
+      isFeatured: dto.isFeatured ?? false,
+      isOnSale: dto.isOnSale ?? false,
+      nutrition: { ...EMPTY_NUTRITION },
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -162,6 +276,8 @@ export class ProductEntity {
       image: this.props.image,
       stock: this.props.stock,
       isActive: this.props.isActive,
+      isFeatured: this.props.isFeatured,
+      isOnSale: this.props.isOnSale,
     };
   }
 
@@ -184,6 +300,8 @@ export class ProductEntity {
     dto.image = this.props.image;
     dto.stock = this.computedStock;
     dto.isActive = this.props.isActive;
+    dto.isFeatured = this.props.isFeatured;
+    dto.isOnSale = this.props.isOnSale;
     dto.createdAt = this.props.createdAt;
     dto.updatedAt = this.props.updatedAt;
 

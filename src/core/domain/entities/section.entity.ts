@@ -42,6 +42,8 @@ type PrismaSectionWithRelations = PrismaSection & {
 interface SectionItemInfo {
   id: string;
   order: number;
+  productId: string | null;
+  comboId: string | null;
   product?: ProductEntity;
   combo?: ComboEntity;
 }
@@ -110,6 +112,8 @@ export class SectionEntity {
         const info: SectionItemInfo = {
           id: item.id,
           order: item.order,
+          productId: item.productId,
+          comboId: item.comboId,
         };
         if (item.product) {
           info.product = ProductEntity.fromPrisma(item.product);

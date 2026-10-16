@@ -50,4 +50,21 @@ export class CreateProductDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({
+    example: false,
+    description: 'Destacado: badge "POPULAR" en el catálogo del cliente.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isFeatured?: boolean;
+
+  @ApiPropertyOptional({
+    example: false,
+    description:
+      'Marcado "En oferta" en el catálogo (todavía no cambia el precio).',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isOnSale?: boolean;
 }

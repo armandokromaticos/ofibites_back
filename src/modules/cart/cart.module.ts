@@ -16,6 +16,7 @@ import { ComboRepository } from "../../core/infrastructure/repositories/combo.re
 import { COMPANY_REPOSITORY } from "../../core/domain/repositories/company.repository.interface";
 import { CompanyRepository } from "../../core/infrastructure/repositories/company.repository";
 import { LineItemPricingService } from "../../core/application/services/line-item-pricing.service";
+import { LineItemAvailabilityService } from "../../core/application/services/line-item-availability.service";
 import { CartViewService } from "../../core/application/services/cart-view.service";
 import { GetCartUseCase } from "../../core/application/use-cases/cart/get-cart.use-case";
 import { AddCartItemUseCase } from "../../core/application/use-cases/cart/add-cart-item.use-case";
@@ -41,6 +42,7 @@ import { ClearCartUseCase } from "../../core/application/use-cases/cart/clear-ca
     { provide: COMBO_REPOSITORY, useClass: ComboRepository },
     { provide: COMPANY_REPOSITORY, useClass: CompanyRepository },
     LineItemPricingService,
+    LineItemAvailabilityService,
     CartViewService,
     GetCartUseCase,
     AddCartItemUseCase,

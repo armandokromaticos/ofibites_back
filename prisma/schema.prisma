@@ -59,10 +59,24 @@ model Product {
   image         String?
   stock         Int?
   isActive      Boolean  @default(true) @map("is_active")
+  isFeatured    Boolean  @default(false) @map("is_featured")
+  isOnSale      Boolean  @default(false) @map("is_on_sale")
+  // Información nutricional opcional (por porción). Gramos salvo energía, calorías, colesterol y sodio.
+  energyKj      Int?     @map("energy_kj")
+  calories      Int?
+  fat           Decimal? @db.Decimal(6, 1)
+  saturatedFat  Decimal? @map("saturated_fat") @db.Decimal(6, 1)
+  carbohydrates Decimal? @db.Decimal(6, 1)
+  sugar         Decimal? @db.Decimal(6, 1)
+  fiber         Decimal? @db.Decimal(6, 1)
+  cholesterolMg Int?     @map("cholesterol_mg")
+  sodiumMg      Int?     @map("sodium_mg")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   sizes          ProductSize[]
+  images         ProductImage[]
+  ingredients    ProductIngredient[]
   modifierGroups ProductModifierGroup[]
   comboItems     ComboItem[]
   orderItems     OrderItem[]
@@ -85,6 +99,8 @@ model ProductSize {
   sortOrder     Int     @default(0) @map("sort_order")
   isDefault     Boolean @default(false) @map("is_default")
   isActive      Boolean @default(true) @map("is_active")
+  // Personas que rinde el tamaño (selector "personas" de la ficha); opcional.
+  servings      Int?
 
   product            Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
   orderItems         OrderItem[]
@@ -92,6 +108,49 @@ model ProductSize {
   modifierSizePrices ModifierSizePrice[]
 
   @@map("product_sizes")
+}
+
+// Galería del producto (la imagen principal sigue en Product.image).
+model ProductImage {
+  // Defaults en BD (no solo en Prisma) para poder cargar a mano con INSERT hasta T-21.
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  productId String   @map("product_id")
+  url       String
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+model Ingredient {
+  // Defaults en BD (no solo en Prisma) para poder cargar a mano con INSERT hasta T-21.
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  nameEs    String   @unique @map("name_es")
+  nameEn    String?  @map("name_en")
+  image     String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  products ProductIngredient[]
+
+  @@map("ingredients")
+}
+
+model ProductIngredient {
+  productId    String @map("product_id")
+  ingredientId String @map("ingredient_id")
+  sortOrder    Int    @default(0) @map("sort_order")
+
+  product    Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@id([productId, ingredientId])
+  @@index([ingredientId])
+  @@map("product_ingredients")
 }
 
 model ProductModifierGroup {
@@ -159,6 +218,8 @@ model Combo {
   price         Decimal  @db.Decimal(10, 2)
   image         String?
   isActive      Boolean  @default(true) @map("is_active")
+  isFeatured    Boolean  @default(false) @map("is_featured")
+  isOnSale      Boolean  @default(false) @map("is_on_sale")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 

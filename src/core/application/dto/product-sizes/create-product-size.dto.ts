@@ -56,4 +56,14 @@ export class CreateProductSizeDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({
+    example: 8,
+    nullable: true,
+    description: "Personas que rinde el tamaño (null lo borra)",
+  })
+  @IsOptional()
+  @IsInt({ message: "servings debe ser un entero" })
+  @Min(1, { message: "servings debe ser al menos 1" })
+  servings?: number | null;
 }

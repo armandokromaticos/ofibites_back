@@ -4,6 +4,7 @@ import { CART_REPOSITORY } from "../../../domain/repositories/cart.repository.in
 import type { ICompanyRepository } from "../../../domain/repositories/company.repository.interface";
 import { COMPANY_REPOSITORY } from "../../../domain/repositories/company.repository.interface";
 import { LineItemPricingService } from "../../services/line-item-pricing.service";
+import { LineItemAvailabilityService } from "../../services/line-item-availability.service";
 import { CartViewService } from "../../services/cart-view.service";
 import { assertCompanyActive } from "../../shared/company-active.guard";
 import { AddCartItemDto } from "../../dto/cart/add-cart-item.dto";
@@ -17,6 +18,7 @@ export class AddCartItemUseCase {
     @Inject(COMPANY_REPOSITORY)
     private readonly companyRepository: ICompanyRepository,
     private readonly lineItemPricingService: LineItemPricingService,
+    private readonly lineItemAvailability: LineItemAvailabilityService,
     private readonly cartView: CartViewService,
   ) {}
 
@@ -28,6 +30,10 @@ export class AddCartItemUseCase {
     await assertCompanyActive(companyId, {
       companyRepository: this.companyRepository,
     });
+
+    // Disponibilidad (activos, combo coherente, tamaño obligatorio) solo al
+    // añadir: GET /cart no debe romperse si algo se desactiva después.
+    await this.lineItemAvailability.assertAvailable(dto);
 
     // Valida que la línea sea coherente contra el catálogo (mismo check que la
     // creación de orden); el precio se descarta porque el carrito no lo congela.

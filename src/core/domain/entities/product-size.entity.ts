@@ -14,6 +14,7 @@ interface ProductSizeProps {
   sortOrder: number;
   isDefault: boolean;
   isActive: boolean;
+  servings: number | null;
 }
 
 export class ProductSizeEntity {
@@ -56,6 +57,10 @@ export class ProductSizeEntity {
   get isActive(): boolean {
     return this.props.isActive;
   }
+  /** Personas que rinde el tamaño (selector de la ficha); `null` si no se cargó. */
+  get servings(): number | null {
+    return this.props.servings;
+  }
 
   static fromPrisma(prisma: PrismaProductSize): ProductSizeEntity {
     return new ProductSizeEntity({
@@ -70,6 +75,7 @@ export class ProductSizeEntity {
       sortOrder: prisma.sortOrder,
       isDefault: prisma.isDefault,
       isActive: prisma.isActive,
+      servings: prisma.servings,
     });
   }
 
@@ -89,6 +95,7 @@ export class ProductSizeEntity {
       sortOrder: dto.sortOrder ?? 0,
       isDefault: dto.isDefault ?? false,
       isActive: dto.isActive ?? true,
+      servings: dto.servings ?? null,
     });
   }
 
@@ -103,6 +110,7 @@ export class ProductSizeEntity {
       sortOrder: this.props.sortOrder,
       isDefault: this.props.isDefault,
       isActive: this.props.isActive,
+      servings: this.props.servings,
       product: { connect: { id: this.props.productId } },
     };
   }
@@ -128,6 +136,7 @@ export class ProductSizeEntity {
     dto.sortOrder = this.props.sortOrder;
     dto.isDefault = this.props.isDefault;
     dto.isActive = this.props.isActive;
+    dto.servings = this.props.servings;
     return dto;
   }
 }

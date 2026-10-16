@@ -47,6 +47,7 @@ export class UpdateProductSizeUseCase {
     if (dto.sortOrder !== undefined) data.sortOrder = dto.sortOrder;
     if (dto.isDefault !== undefined) data.isDefault = dto.isDefault;
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
+    if (dto.servings !== undefined) data.servings = dto.servings;
 
     const updated = await this.productSizeRepository.update({
       where: { id },

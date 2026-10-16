@@ -47,3 +47,20 @@ export function caracasTodayDateRange(now: Date = new Date()): {
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * MS_PER_MINUTE);
   return { dayStart, dayEnd };
 }
+
+/**
+ * Medianoche (hora de Caracas) del día que cae `days` días antes de hoy en
+ * Caracas, como instante UTC. Sirve de corte inclusivo para "últimos N días"
+ * sobre columnas `DateTime` (p. ej. `createdAt >= corte`).
+ */
+export function caracasDayStartDaysAgo(
+  days: number,
+  now: Date = new Date(),
+): Date {
+  const todayStartUtc = Date.parse(`${toCaracasDateKey(now)}T00:00:00.000Z`);
+  return new Date(
+    todayStartUtc -
+      days * 24 * 60 * MS_PER_MINUTE -
+      CARACAS_OFFSET_MINUTES * MS_PER_MINUTE,
+  );
+}

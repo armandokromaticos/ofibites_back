@@ -39,4 +39,11 @@ export class ProductSizeResponseDto {
 
   @ApiProperty()
   isActive: boolean;
+
+  @ApiProperty({
+    nullable: true,
+    type: Number,
+    description: "Personas que rinde el tamaño",
+  })
+  servings: number | null;
 }

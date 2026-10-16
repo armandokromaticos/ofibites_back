@@ -38,6 +38,8 @@ export class UpdateComboUseCase {
     if (dto.price !== undefined) data.price = new Prisma.Decimal(dto.price);
     if (dto.image !== undefined) data.image = dto.image;
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
+    if (dto.isFeatured !== undefined) data.isFeatured = dto.isFeatured;
+    if (dto.isOnSale !== undefined) data.isOnSale = dto.isOnSale;
 
     return this.comboRepository.update({
       where: { id },
