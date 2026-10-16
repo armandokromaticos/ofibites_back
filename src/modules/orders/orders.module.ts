@@ -20,6 +20,7 @@ import { ComboRepository } from "../../core/infrastructure/repositories/combo.re
 import { COMPANY_REPOSITORY } from "../../core/domain/repositories/company.repository.interface";
 import { CompanyRepository } from "../../core/infrastructure/repositories/company.repository";
 import { LineItemPricingService } from "../../core/application/services/line-item-pricing.service";
+import { LineItemAvailabilityService } from "../../core/application/services/line-item-availability.service";
 import { OrderVisibilityResolver } from "../../core/application/services/order-visibility.resolver";
 import { CreateOrderUseCase } from "../../core/application/use-cases/orders/create-order.use-case";
 import { GetOrderUseCase } from "../../core/application/use-cases/orders/get-order.use-case";
@@ -52,6 +53,7 @@ import { RepeatOrderUseCase } from "../../core/application/use-cases/orders/repe
     { provide: COMBO_REPOSITORY, useClass: ComboRepository },
     { provide: COMPANY_REPOSITORY, useClass: CompanyRepository },
     LineItemPricingService,
+    LineItemAvailabilityService,
     OrderVisibilityResolver,
     CreateOrderUseCase,
     GetOrderUseCase,

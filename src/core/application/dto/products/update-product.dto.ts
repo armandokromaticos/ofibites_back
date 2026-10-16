@@ -51,7 +51,24 @@ export class UpdateProductDto {
   stock?: number | null;
 
   @ApiPropertyOptional({ example: true })
-  @IsOptional()
+  @ValidateIf((_, value) => value !== undefined)
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({
+    example: false,
+    description: 'Destacado: badge "POPULAR" en el catálogo del cliente.',
+  })
+  @ValidateIf((_, value) => value !== undefined)
+  @IsBoolean()
+  isFeatured?: boolean;
+
+  @ApiPropertyOptional({
+    example: false,
+    description:
+      'Marcado "En oferta" en el catálogo (todavía no cambia el precio).',
+  })
+  @ValidateIf((_, value) => value !== undefined)
+  @IsBoolean()
+  isOnSale?: boolean;
 }

@@ -27,6 +27,7 @@ import {
 import { CouponEntity } from "../../../domain/entities/coupon.entity";
 import { Role } from "../../../domain/enums/role.enum";
 import { LineItemPricingService } from "../../services/line-item-pricing.service";
+import { LineItemAvailabilityService } from "../../services/line-item-availability.service";
 import { assertCompanyActive } from "../../shared/company-active.guard";
 
 const PLATFORM_BYPASS_MEMBERSHIP_ROLES: ReadonlySet<Role> = new Set([
@@ -52,6 +53,7 @@ export class CreateOrderUseCase {
     private readonly departmentRepository: IDepartmentRepository,
     @Inject(COMPANY_ADDRESS_REPOSITORY)
     private readonly companyAddressRepository: ICompanyAddressRepository,
+    private readonly lineItemAvailability: LineItemAvailabilityService,
   ) {}
 
   async execute(
@@ -60,6 +62,11 @@ export class CreateOrderUseCase {
     dto: CreateOrderDto,
   ): Promise<OrderEntity> {
     await this.validateCompanyContext(userId, userRole, dto);
+
+    // Una orden nueva solo con catálogo disponible (activos, combos coherentes).
+    for (const itemDto of dto.items) {
+      await this.lineItemAvailability.assertAvailable(itemDto);
+    }
 
     const pricedItems = await Promise.all(
       dto.items.map((itemDto) =>

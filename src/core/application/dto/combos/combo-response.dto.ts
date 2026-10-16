@@ -39,6 +39,14 @@ export class ComboResponseDto {
   @ApiProperty()
   isActive: boolean;
 
+  @ApiProperty({ description: 'Destacado: badge "POPULAR" en el catálogo' })
+  isFeatured: boolean;
+
+  @ApiProperty({
+    description: 'Marcado "En oferta" en el catálogo (aún no cambia el precio)',
+  })
+  isOnSale: boolean;
+
   @ApiProperty()
   createdAt: Date;
 

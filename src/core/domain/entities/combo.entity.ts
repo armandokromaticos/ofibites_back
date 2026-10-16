@@ -34,6 +34,8 @@ interface ComboProps {
   price: number;
   image: string | null;
   isActive: boolean;
+  isFeatured: boolean;
+  isOnSale: boolean;
   createdAt: Date;
   updatedAt: Date;
   items?: ComboItemInfo[];
@@ -70,6 +72,12 @@ export class ComboEntity {
   get isActive(): boolean {
     return this.props.isActive;
   }
+  get isFeatured(): boolean {
+    return this.props.isFeatured;
+  }
+  get isOnSale(): boolean {
+    return this.props.isOnSale;
+  }
   get createdAt(): Date {
     return this.props.createdAt;
   }
@@ -90,6 +98,8 @@ export class ComboEntity {
       price: Number(prisma.price),
       image: prisma.image,
       isActive: prisma.isActive,
+      isFeatured: prisma.isFeatured,
+      isOnSale: prisma.isOnSale,
       createdAt: prisma.createdAt,
       updatedAt: prisma.updatedAt,
     };
@@ -119,6 +129,8 @@ export class ComboEntity {
       price: dto.price,
       image: dto.image ?? null,
       isActive: dto.isActive ?? true,
+      isFeatured: dto.isFeatured ?? false,
+      isOnSale: dto.isOnSale ?? false,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -133,6 +145,8 @@ export class ComboEntity {
       price: new Prisma.Decimal(this.props.price),
       image: this.props.image,
       isActive: this.props.isActive,
+      isFeatured: this.props.isFeatured,
+      isOnSale: this.props.isOnSale,
     };
   }
 
@@ -153,6 +167,8 @@ export class ComboEntity {
     dto.price = this.props.price;
     dto.image = this.props.image;
     dto.isActive = this.props.isActive;
+    dto.isFeatured = this.props.isFeatured;
+    dto.isOnSale = this.props.isOnSale;
     dto.createdAt = this.props.createdAt;
     dto.updatedAt = this.props.updatedAt;
 

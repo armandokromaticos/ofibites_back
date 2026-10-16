@@ -26,6 +26,7 @@ import { CompanyOnboardingModule } from "./modules/company-onboarding/company-on
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { InvitationsModule } from "./modules/invitations/invitations.module";
 import { SupportTicketsModule } from "./modules/support-tickets/support-tickets.module";
+import { CatalogModule } from "./modules/catalog/catalog.module";
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { SupportTicketsModule } from "./modules/support-tickets/support-tickets.
     DashboardModule,
     InvitationsModule,
     SupportTicketsModule,
+    CatalogModule,
   ],
   controllers: [AppController],
   providers: [AppService],

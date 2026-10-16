@@ -51,6 +51,8 @@ export class UpdateProductUseCase {
     }
     if (dto.image !== undefined) data.image = dto.image;
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
+    if (dto.isFeatured !== undefined) data.isFeatured = dto.isFeatured;
+    if (dto.isOnSale !== undefined) data.isOnSale = dto.isOnSale;
 
     if (activeSizesWithStock.length > 0) {
       // Recalcular stock desde sizes si hay tamaños con stock manual
