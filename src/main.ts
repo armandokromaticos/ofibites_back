@@ -14,9 +14,14 @@ async function bootstrap() {
   app.set("trust proxy", Number.isFinite(trustProxyHops) ? trustProxyHops : 0);
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.setGlobalPrefix("api");
+  // CORS_ORIGIN admite varios orígenes separados por coma (dominio de
+  // producción + previews de Vercel).
+  const corsOrigins = process.env.CORS_ORIGIN?.split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
   app.enableCors(
     process.env.NODE_ENV === "production"
-      ? { origin: process.env.CORS_ORIGIN, credentials: true }
+      ? { origin: corsOrigins, credentials: true }
       : undefined,
   );
 
