@@ -58,13 +58,16 @@ export class OrderRepository implements IOrderRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(entity: OrderEntity): Promise<OrderEntity> {
-    const order = await this.prisma.$transaction(async (tx) => {
-      const orderNumber = await nextOrderNumber(tx);
-      return tx.order.create({
-        data: entity.toPrismaCreate(orderNumber),
-        include: ORDER_FULL_INCLUDE,
-      });
-    });
+    const order = await this.prisma.$transaction(
+      async (tx) => {
+        const orderNumber = await nextOrderNumber(tx);
+        return tx.order.create({
+          data: entity.toPrismaCreate(orderNumber),
+          include: ORDER_FULL_INCLUDE,
+        });
+      },
+      { timeout: 15000 },
+    );
     return OrderEntity.fromPrisma(order);
   }
 
@@ -93,7 +96,10 @@ export class OrderRepository implements IOrderRepository {
         data: entity.toPrismaCreate(orderNumber),
         include: ORDER_FULL_INCLUDE,
       });
-    });
+      // Timeout default (5000ms) insuficiente para la latencia entre la
+      // región del server y el pooler de Supabase: varios round-trips
+      // secuenciales en esta transacción (P2028 visto en producción).
+    }, { timeout: 15000 });
     return OrderEntity.fromPrisma(order);
   }
 
