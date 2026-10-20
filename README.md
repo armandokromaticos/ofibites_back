@@ -34,7 +34,7 @@ PORT=3000
 # 0 o sin definir en local; 1 en producción detrás de un proxy/PaaS.
 TRUST_PROXY_HOPS=0
 NODE_ENV=development
-# CORS_ORIGIN=https://ofibites.com  # solo en producción
+# CORS_ORIGIN=https://ofibites.com,https://ofibites-front.vercel.app  # solo en producción; varios orígenes separados por coma
 ```
 
 ## Comandos
