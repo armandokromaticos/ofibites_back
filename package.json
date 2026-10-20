@@ -9,7 +9,7 @@
     "node": "20.x"
   },
   "scripts": {
-    "build": "prisma generate && nest build",
+    "build": "prisma generate && node node_modules/@nestjs/cli/bin/nest.js build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "prisma generate && nest start",
     "start:dev": "prisma generate && nest start --watch",
