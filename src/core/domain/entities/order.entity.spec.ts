@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { OrderEntity } from "./order.entity";
+import { OrderStatusGroup } from "../services/order-status-groups";
 
 const dec = (n: number) => new Prisma.Decimal(n);
 
@@ -39,13 +40,14 @@ function persisted(): OrderEntity {
 }
 
 describe("OrderEntity.toResponseDto", () => {
-  it("expone tax, shipping, orderNumber y el receptor", () => {
+  it("expone tax, shipping, orderNumber, el receptor y statusGroup", () => {
     expect(persisted().toResponseDto()).toMatchObject({
       tax: 16,
       shipping: 5,
       total: 121,
       orderNumber: "OF-2026-0001",
       receiverName: "Ana",
+      statusGroup: OrderStatusGroup.RECEIVED, // CREATED
     });
   });
 

@@ -17,6 +17,18 @@ export type OrderVisibilityFilter =
 export interface OrderListFilters {
   visibility: OrderVisibilityFilter;
   statuses?: OrderStatus[];
+  /** Quién hizo el pedido (`Order.userId`). Filtro "Usuario" de T-28b. */
+  userId?: string;
+  branchId?: string;
+  departmentId?: string;
+  /** Rango de `deliveryDate` (ambos inclusive), como medianoche UTC de esa fecha. */
+  deliveryDateFrom?: Date;
+  deliveryDateTo?: Date;
+  /** Busca por `orderNumber` (contiene, sin distinguir mayúsculas). */
+  search?: string;
+  /** Solo se pagina (y se cuenta `total`) si vienen definidos. */
+  skip?: number;
+  take?: number;
 }
 
 /** Líneas del carrito tal como se leyeron y tarificaron en el checkout. */
@@ -46,6 +58,9 @@ export interface IOrderRepository {
   exists(args: Prisma.OrderCountArgs): Promise<boolean>;
 
   // Helpers de dominio
-  findVisible(filters: OrderListFilters): Promise<OrderEntity[]>;
+  /** `total` solo se calcula si `filters.skip`/`filters.take` vienen definidos. */
+  findVisible(
+    filters: OrderListFilters,
+  ): Promise<{ data: OrderEntity[]; total?: number }>;
   updateStatus(id: string, status: OrderStatus): Promise<OrderEntity>;
 }

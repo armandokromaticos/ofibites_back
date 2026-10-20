@@ -78,28 +78,31 @@ export class OrderRepository implements IOrderRepository {
     if (cart.items.length === 0) {
       throw new CartChangedException(cart.cartId);
     }
-    const order = await this.prisma.$transaction(async (tx) => {
-      // Primero se borran las líneas y el conteo decide si seguir; si no
-      // cuadra se revierte todo (pedido, contador y borrado).
-      const count = await tx.$executeRaw(buildCheckoutCartDeleteQuery(cart));
-      if (count !== cart.items.length) {
-        throw new CartChangedException(cart.cartId);
-      }
-      // El carrito "cambió" (se vació): lo reflejan los que lo estén mirando.
-      await tx.cart.update({
-        where: { id: cart.cartId },
-        data: { updatedAt: new Date() },
-      });
+    const order = await this.prisma.$transaction(
+      async (tx) => {
+        // Primero se borran las líneas y el conteo decide si seguir; si no
+        // cuadra se revierte todo (pedido, contador y borrado).
+        const count = await tx.$executeRaw(buildCheckoutCartDeleteQuery(cart));
+        if (count !== cart.items.length) {
+          throw new CartChangedException(cart.cartId);
+        }
+        // El carrito "cambió" (se vació): lo reflejan los que lo estén mirando.
+        await tx.cart.update({
+          where: { id: cart.cartId },
+          data: { updatedAt: new Date() },
+        });
 
-      const orderNumber = await nextOrderNumber(tx);
-      return tx.order.create({
-        data: entity.toPrismaCreate(orderNumber),
-        include: ORDER_FULL_INCLUDE,
-      });
-      // Timeout default (5000ms) insuficiente para la latencia entre la
-      // región del server y el pooler de Supabase: varios round-trips
-      // secuenciales en esta transacción (P2028 visto en producción).
-    }, { timeout: 15000 });
+        const orderNumber = await nextOrderNumber(tx);
+        return tx.order.create({
+          data: entity.toPrismaCreate(orderNumber),
+          include: ORDER_FULL_INCLUDE,
+        });
+        // Timeout default (5000ms) insuficiente para la latencia entre la
+        // región del server y el pooler de Supabase: varios round-trips
+        // secuenciales en esta transacción (P2028 visto en producción).
+      },
+      { timeout: 15000 },
+    );
     return OrderEntity.fromPrisma(order);
   }
 
@@ -135,19 +138,49 @@ export class OrderRepository implements IOrderRepository {
     return count > 0;
   }
 
-  async findVisible(filters: OrderListFilters): Promise<OrderEntity[]> {
+  async findVisible(
+    filters: OrderListFilters,
+  ): Promise<{ data: OrderEntity[]; total?: number }> {
     const where = buildOrderVisibilityWhere(filters.visibility);
 
     if (filters.statuses && filters.statuses.length > 0) {
       where.status = { in: filters.statuses };
     }
+    if (filters.userId) {
+      where.userId = filters.userId;
+    }
+    if (filters.branchId) {
+      where.branchId = filters.branchId;
+    }
+    if (filters.departmentId) {
+      where.departmentId = filters.departmentId;
+    }
+    if (filters.deliveryDateFrom || filters.deliveryDateTo) {
+      where.deliveryDate = {
+        ...(filters.deliveryDateFrom ? { gte: filters.deliveryDateFrom } : {}),
+        ...(filters.deliveryDateTo ? { lte: filters.deliveryDateTo } : {}),
+      };
+    }
+    if (filters.search) {
+      where.orderNumber = { contains: filters.search, mode: "insensitive" };
+    }
+
+    const hasPagination =
+      typeof filters.skip === "number" || typeof filters.take === "number";
 
     const orders = await this.prisma.order.findMany({
       where,
       include: ORDER_FULL_INCLUDE,
       orderBy: { createdAt: "desc" },
+      ...(hasPagination ? { skip: filters.skip, take: filters.take } : {}),
     });
-    return orders.map((order) => OrderEntity.fromPrisma(order));
+    const data = orders.map((order) => OrderEntity.fromPrisma(order));
+
+    if (hasPagination) {
+      const total = await this.prisma.order.count({ where });
+      return { data, total };
+    }
+    return { data };
   }
 
   async updateStatus(id: string, status: OrderStatus): Promise<OrderEntity> {

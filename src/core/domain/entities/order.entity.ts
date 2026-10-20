@@ -13,6 +13,7 @@ import {
   OrderItemModifierResponseDto,
 } from "../../application/dto/orders/order-response.dto";
 import { OrderStateMachine } from "../services/order-state-machine";
+import { getOrderStatusGroup } from "../services/order-status-groups";
 import { Money } from "../value-objects/money.vo";
 
 // Las columnas del checkout son opcionales para aceptar filas parciales (fixtures).
@@ -432,6 +433,7 @@ export class OrderEntity {
     dto.notes = this.props.notes;
     dto.priority = this.props.priority;
     dto.status = this.props.status;
+    dto.statusGroup = getOrderStatusGroup(this.props.status);
     dto.subtotal = maskPrices ? null : this.props.subtotal;
     dto.discount = maskPrices ? null : this.props.discount;
     dto.tax = maskPrices ? null : this.props.tax;

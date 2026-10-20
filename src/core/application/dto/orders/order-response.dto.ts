@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { OrderPriority } from "../../../domain/enums/order-priority.enum";
+import { OrderStatusGroup } from "../../../domain/services/order-status-groups";
 
 export class OrderItemModifierResponseDto {
   @ApiProperty()
@@ -91,6 +92,13 @@ export class OrderResponseDto {
   status: string;
 
   @ApiProperty({
+    enum: OrderStatusGroup,
+    description:
+      'Grupo visible para "Pedidos realizados" del cliente. Calculado a partir de `status`, no es una columna de BD.',
+  })
+  statusGroup: OrderStatusGroup;
+
+  @ApiProperty({
     nullable: true,
     type: Number,
     description: "Oculto para roles sin acceso a precios",
@@ -164,4 +172,17 @@ export class OrderResponseDto {
 
   @ApiPropertyOptional({ type: () => [OrderItemResponseDto] })
   items?: OrderItemResponseDto[];
+}
+
+/**
+ * Forma de `GET /orders` cuando se pide paginación (`skip` y/o `take`). Sin
+ * ellos, el endpoint sigue devolviendo el array plano de `OrderResponseDto[]`
+ * (no rompe a los consumidores actuales, p. ej. el dashboard).
+ */
+export class PaginatedOrderResponseDto {
+  @ApiProperty({ type: () => [OrderResponseDto] })
+  data: OrderResponseDto[];
+
+  @ApiProperty({ description: "Total de órdenes que cumple el filtro." })
+  total: number;
 }

@@ -8,13 +8,17 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
+  ApiExtraModels,
   ApiHeader,
+  ApiOkResponse,
   ApiOperation,
   ApiTags,
+  getSchemaPath,
 } from "@nestjs/swagger";
 import { isUUID } from "class-validator";
 import { Role } from "../../../core/domain/enums/role.enum";
@@ -25,7 +29,11 @@ import { CurrentUser } from "../../auth/decorators/current-user.decorator";
 import { CreateOrderDto } from "../../../core/application/dto/orders/create-order.dto";
 import { UpdateOrderStatusDto } from "../../../core/application/dto/orders/update-order-status.dto";
 import { RepeatOrderDto } from "../../../core/application/dto/orders/repeat-order.dto";
-import { OrderResponseDto } from "../../../core/application/dto/orders/order-response.dto";
+import { GetOrdersQueryDto } from "../../../core/application/dto/orders/get-orders-query.dto";
+import {
+  OrderResponseDto,
+  PaginatedOrderResponseDto,
+} from "../../../core/application/dto/orders/order-response.dto";
 import { RepeatOrderResponseDto } from "../../../core/application/dto/orders/repeat-order-response.dto";
 import { CreateOrderUseCase } from "../../../core/application/use-cases/orders/create-order.use-case";
 import { GetOrderUseCase } from "../../../core/application/use-cases/orders/get-order.use-case";
@@ -72,7 +80,7 @@ export class OrdersController {
   @Roles(Role.SUPER_ADMIN, Role.OPS_ADMIN, Role.OPERATOR, Role.CLIENT)
   @ApiOperation({
     summary:
-      "Listar órdenes filtradas según rol y header X-Company-Id (opcional)",
+      "Listar órdenes filtradas según rol y header X-Company-Id (opcional). Sin skip/take devuelve el array plano; con alguno, { data, total }.",
   })
   @ApiHeader({
     name: "X-Company-Id",
@@ -80,18 +88,40 @@ export class OrdersController {
     description:
       "Si se envía, restringe la respuesta a esa empresa (validando acceso del usuario).",
   })
+  @ApiExtraModels(OrderResponseDto, PaginatedOrderResponseDto)
+  @ApiOkResponse({
+    schema: {
+      oneOf: [
+        {
+          type: "array",
+          items: { $ref: getSchemaPath(OrderResponseDto) },
+        },
+        { $ref: getSchemaPath(PaginatedOrderResponseDto) },
+      ],
+    },
+  })
   async findAllOrders(
+    @Query() query: GetOrdersQueryDto,
     @CurrentUser() user: { id: string; role: Role },
     @Headers("x-company-id") companyIdHeader?: string,
-  ): Promise<OrderResponseDto[]> {
+  ): Promise<OrderResponseDto[] | PaginatedOrderResponseDto> {
     const companyId = this.parseCompanyIdHeader(companyIdHeader);
-    const entities = await this.getOrdersUseCase.execute(
+    const { data, total } = await this.getOrdersUseCase.execute(
       user.id,
       user.role,
       companyId,
+      query,
     );
     const maskPrices = user.role === Role.OPERATOR;
-    return entities.map((order) => order.toResponseDto({ maskPrices }));
+    const dtos = data.map((order) => order.toResponseDto({ maskPrices }));
+
+    if (typeof total === "number") {
+      const response = new PaginatedOrderResponseDto();
+      response.data = dtos;
+      response.total = total;
+      return response;
+    }
+    return dtos;
   }
 
   @Get(":id")
