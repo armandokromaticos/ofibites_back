@@ -23,6 +23,7 @@ export class GetCompanyMembersUseCase {
     const { data } = await this.memberRepository.findMany({
       where: { companyId },
       orderBy: { createdAt: "asc" },
+      include: { user: { select: { name: true, email: true, phone: true } } },
     });
     return data;
   }

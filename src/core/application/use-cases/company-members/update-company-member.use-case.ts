@@ -11,8 +11,11 @@ import type { IBranchRepository } from "../../../domain/repositories/branch.repo
 import { BRANCH_REPOSITORY } from "../../../domain/repositories/branch.repository.interface";
 import type { IDepartmentRepository } from "../../../domain/repositories/department.repository.interface";
 import { DEPARTMENT_REPOSITORY } from "../../../domain/repositories/department.repository.interface";
+import type { IUserRepository } from "../../../domain/repositories/user.repository.interface";
+import { USER_REPOSITORY } from "../../../domain/repositories/user.repository.interface";
 import { UpdateCompanyMemberDto } from "../../dto/company-members/update-company-member.dto";
 import { CompanyMemberEntity } from "../../../domain/entities/company-member.entity";
+import { UserEntity } from "../../../domain/entities/user.entity";
 
 @Injectable()
 export class UpdateCompanyMemberUseCase {
@@ -23,6 +26,8 @@ export class UpdateCompanyMemberUseCase {
     private readonly branchRepository: IBranchRepository,
     @Inject(DEPARTMENT_REPOSITORY)
     private readonly departmentRepository: IDepartmentRepository,
+    @Inject(USER_REPOSITORY)
+    private readonly userRepository: IUserRepository,
   ) {}
 
   async execute(
@@ -104,8 +109,36 @@ export class UpdateCompanyMemberUseCase {
             };
     }
 
+    // `@IsOptional()` de class-validator trata `null` igual que `undefined` y
+    // salta el resto de validadores del campo, así que un `name: null` llega
+    // intacto hasta aquí. `User.name` es NOT NULL en el schema, así que lo
+    // rechazamos explícitamente en vez de dejar que Prisma lance un error
+    // genérico (mismo estilo que el chequeo de branchId/departmentId arriba).
+    if (dto.name === null) {
+      throw new BadRequestException("name no puede ser null");
+    }
+
+    // El correo no se puede cambiar por aquí (decisión de diseño); nombre y
+    // teléfono viven en User, no en CompanyMember, así que se actualizan en
+    // dos awaits secuenciales (no hay precedente de $transaction cruzando
+    // tablas en este repo fuera del checkout).
+    let user: UserEntity | null = null;
+    if (dto.name !== undefined || dto.phone !== undefined) {
+      const userData: Prisma.UserUpdateInput = {};
+      if (dto.name !== undefined) userData.name = dto.name;
+      if (dto.phone !== undefined) userData.phone = dto.phone;
+      user = await this.userRepository.update({
+        where: { id: existing.userId },
+        data: userData,
+      });
+    }
+
+    let updatedMember: CompanyMemberEntity;
     try {
-      return await this.memberRepository.update({ where: { id }, data });
+      updatedMember = await this.memberRepository.update({
+        where: { id },
+        data,
+      });
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -117,5 +150,20 @@ export class UpdateCompanyMemberUseCase {
       }
       throw error;
     }
+
+    // El repositorio genérico no trae el `user` incluido en `update`: si no
+    // lo tocamos arriba, lo buscamos para completar la respuesta.
+    if (!user) {
+      user = await this.userRepository.findUnique({
+        where: { id: existing.userId },
+      });
+    }
+    if (user) {
+      updatedMember.userName = user.name;
+      updatedMember.userEmail = user.email;
+      updatedMember.userPhone = user.phone;
+    }
+
+    return updatedMember;
   }
 }

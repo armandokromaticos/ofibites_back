@@ -6,10 +6,24 @@ import {
   IsString,
   IsUUID,
   MaxLength,
+  MinLength,
 } from "class-validator";
 import { CompanyRole } from "../../../domain/enums/company-role.enum";
 
 export class UpdateCompanyMemberDto {
+  @ApiPropertyOptional({ example: "Juan Perez" })
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(150)
+  name?: string;
+
+  @ApiPropertyOptional({ nullable: true, example: "+584141234567" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  phone?: string | null;
+
   @ApiPropertyOptional({ enum: CompanyRole })
   @IsOptional()
   @IsEnum(CompanyRole)

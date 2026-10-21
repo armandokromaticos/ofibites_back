@@ -163,7 +163,13 @@ export class InviteCompanyMemberUseCase {
         canPayInvoices: dto.canPayInvoices,
         isActive: true,
       });
-      return await this.memberRepository.create(memberEntity);
+      const created = await this.memberRepository.create(memberEntity);
+      // Ya tenemos el User recién creado a mano: evita pedir el include de
+      // nuevo al repositorio solo para esto.
+      created.userName = createdUser.name;
+      created.userEmail = createdUser.email;
+      created.userPhone = createdUser.phone;
+      return created;
     } catch (err) {
       this.logger.error(
         `Error creando CompanyMember para ${createdUser.id}, revirtiendo User y Auth`,
