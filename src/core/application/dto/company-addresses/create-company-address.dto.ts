@@ -56,6 +56,25 @@ export class CreateCompanyAddressDto {
   @MaxLength(20)
   zip?: string;
 
+  @ApiProperty({
+    example: "María Pérez",
+    description: '"Quién recibe" en esta dirección',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(150)
+  contactName: string;
+
+  @ApiProperty({
+    example: "+58 412-555-1234",
+    description:
+      "Teléfono de contacto de la sede, texto libre (sin validación de formato)",
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(30)
+  contactPhone: string;
+
   @ApiPropertyOptional({ default: false })
   @IsOptional()
   @IsBoolean()
@@ -65,4 +84,13 @@ export class CreateCompanyAddressDto {
   @IsOptional()
   @IsBoolean()
   isShipping?: boolean;
+
+  @ApiPropertyOptional({
+    default: false,
+    description:
+      "Marcar como sede principal. Un solo primario por empresa: desmarca cualquier otra dirección primaria de la misma empresa.",
+  })
+  @IsOptional()
+  @IsBoolean()
+  isPrimary?: boolean;
 }

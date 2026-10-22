@@ -32,11 +32,30 @@ export class CompanyAddressResponseDto {
   @ApiPropertyOptional({ nullable: true, type: String })
   zip: string | null;
 
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description: '"Quién recibe"',
+  })
+  contactName: string | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description: "Teléfono de contacto",
+  })
+  contactPhone: string | null;
+
   @ApiProperty()
   isBilling: boolean;
 
   @ApiProperty()
   isShipping: boolean;
+
+  @ApiProperty({
+    description: "Sede principal. Un solo primario por empresa.",
+  })
+  isPrimary: boolean;
 
   @ApiProperty()
   createdAt: Date;
@@ -56,8 +75,11 @@ export class CompanyAddressResponseDto {
     dto.state = entity.state;
     dto.country = entity.country;
     dto.zip = entity.zip;
+    dto.contactName = entity.contactName;
+    dto.contactPhone = entity.contactPhone;
     dto.isBilling = entity.isBilling;
     dto.isShipping = entity.isShipping;
+    dto.isPrimary = entity.isPrimary;
     dto.createdAt = entity.createdAt;
     dto.updatedAt = entity.updatedAt;
     return dto;

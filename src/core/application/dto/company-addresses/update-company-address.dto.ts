@@ -60,6 +60,23 @@ export class UpdateCompanyAddressDto {
   @MaxLength(20)
   zip?: string | null;
 
+  @ApiPropertyOptional({ description: '"Quién recibe" en esta dirección' })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(150)
+  contactName?: string;
+
+  @ApiPropertyOptional({
+    description:
+      "Teléfono de contacto de la sede, texto libre (sin validación de formato)",
+  })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(30)
+  contactPhone?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
@@ -69,4 +86,12 @@ export class UpdateCompanyAddressDto {
   @IsOptional()
   @IsBoolean()
   isShipping?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      "Marcar como sede principal. Un solo primario por empresa: true desmarca cualquier otra dirección primaria de la misma empresa.",
+  })
+  @IsOptional()
+  @IsBoolean()
+  isPrimary?: boolean;
 }
