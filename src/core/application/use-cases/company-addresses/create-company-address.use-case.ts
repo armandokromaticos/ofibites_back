@@ -36,12 +36,34 @@ export class CreateCompanyAddressUseCase {
       state: dto.state ?? null,
       country: dto.country,
       zip: dto.zip ?? null,
+      contactName: dto.contactName,
+      contactPhone: dto.contactPhone,
       isBilling: dto.isBilling,
       isShipping: dto.isShipping,
+      isPrimary: dto.isPrimary,
     });
+
+    // isBilling e isPrimary son invariantes independientes ("una sola
+    // dirección de billing" / "una sola sede principal" por empresa). El
+    // caso común (solo uno de los dos, o ninguno) usa el método combinado
+    // atómico (create + desmarcar las demás en una transacción); si ambos
+    // vienen en true se encadenan los dos pasos sobre la misma fila creada.
+    if (entity.isBilling && entity.isPrimary) {
+      const created = await this.addressRepository.create(entity);
+      await this.addressRepository.setSingleBilling(companyId, created.id);
+      await this.addressRepository.setSinglePrimary(companyId, created.id);
+      const refreshed = await this.addressRepository.findUnique({
+        where: { id: created.id },
+      });
+      return refreshed ?? created;
+    }
 
     if (entity.isBilling) {
       return this.addressRepository.createAndSetSingleBilling(entity);
+    }
+
+    if (entity.isPrimary) {
+      return this.addressRepository.createAndSetSinglePrimary(entity);
     }
 
     return this.addressRepository.create(entity);

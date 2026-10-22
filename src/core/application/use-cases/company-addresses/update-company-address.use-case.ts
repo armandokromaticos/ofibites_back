@@ -57,9 +57,16 @@ export class UpdateCompanyAddressUseCase {
       const trimmed = dto.zip?.trim();
       data.zip = trimmed ? trimmed : null;
     }
+    if (dto.contactName !== undefined) {
+      data.contactName = dto.contactName.trim();
+    }
+    if (dto.contactPhone !== undefined) {
+      data.contactPhone = dto.contactPhone.trim();
+    }
     if (dto.isShipping !== undefined) data.isShipping = dto.isShipping;
     if (dto.isBilling === false) data.isBilling = false;
-    // isBilling=true se aplica después con setSingleBilling para cumplir invariante
+    if (dto.isPrimary === false) data.isPrimary = false;
+    // isBilling=true / isPrimary=true se aplican después con setSingle* para cumplir el invariante
 
     let updated: CompanyAddressEntity;
     try {
@@ -78,6 +85,12 @@ export class UpdateCompanyAddressUseCase {
 
     if (dto.isBilling === true) {
       await this.addressRepository.setSingleBilling(companyId, id);
+    }
+    if (dto.isPrimary === true) {
+      await this.addressRepository.setSinglePrimary(companyId, id);
+    }
+
+    if (dto.isBilling === true || dto.isPrimary === true) {
       const refreshed = await this.addressRepository.findUnique({
         where: { id },
       });

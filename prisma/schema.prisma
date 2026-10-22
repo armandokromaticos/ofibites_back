@@ -455,20 +455,26 @@ model Department {
 }
 
 model CompanyAddress {
-  id         String   @id @default(uuid())
-  companyId  String   @map("company_id")
-  label      String
-  line1      String
-  line2      String?
-  reference  String?
-  city       String
-  state      String?
-  country    String
-  zip        String?
-  isBilling  Boolean  @default(false) @map("is_billing")
-  isShipping Boolean  @default(true) @map("is_shipping")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  id           String   @id @default(uuid())
+  companyId    String   @map("company_id")
+  label        String
+  line1        String
+  line2        String?
+  reference    String?
+  city         String
+  state        String?
+  country      String
+  zip          String?
+  isBilling    Boolean  @default(false) @map("is_billing")
+  isShipping   Boolean  @default(true) @map("is_shipping")
+  // T-31a: "Direcciones y sedes" de Mi perfil. Requeridos al crear por el DTO
+  // (no en BD, para no romper filas existentes); isPrimary sigue el mismo
+  // patrón de invariante "uno solo por empresa" que isBilling.
+  contactName  String?  @map("contact_name")
+  contactPhone String?  @map("contact_phone")
+  isPrimary    Boolean  @default(false) @map("is_primary")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   orders  Order[]

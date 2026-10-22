@@ -86,4 +86,36 @@ export class CompanyAddressRepository implements ICompanyAddressRepository {
     });
     return CompanyAddressEntity.fromPrisma(created);
   }
+
+  async setSinglePrimary(companyId: string, targetId: string): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.companyAddress.updateMany({
+        where: { companyId, isPrimary: true, NOT: { id: targetId } },
+        data: { isPrimary: false },
+      }),
+      this.prisma.companyAddress.update({
+        where: { companyId_id: { companyId, id: targetId } },
+        data: { isPrimary: true },
+      }),
+    ]);
+  }
+
+  async createAndSetSinglePrimary(
+    entity: CompanyAddressEntity,
+  ): Promise<CompanyAddressEntity> {
+    const data = entity.toPrismaCreate();
+    const created = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.companyAddress.create({ data });
+      await tx.companyAddress.updateMany({
+        where: {
+          companyId: entity.companyId,
+          isPrimary: true,
+          NOT: { id: row.id },
+        },
+        data: { isPrimary: false },
+      });
+      return row;
+    });
+    return CompanyAddressEntity.fromPrisma(created);
+  }
 }

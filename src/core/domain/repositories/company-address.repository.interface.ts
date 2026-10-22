@@ -20,4 +20,10 @@ export interface ICompanyAddressRepository {
   createAndSetSingleBilling(
     entity: CompanyAddressEntity,
   ): Promise<CompanyAddressEntity>;
+
+  // T-31a: mismo invariante, ahora para "sede principal" (isPrimary)
+  setSinglePrimary(companyId: string, targetId: string): Promise<void>;
+  createAndSetSinglePrimary(
+    entity: CompanyAddressEntity,
+  ): Promise<CompanyAddressEntity>;
 }

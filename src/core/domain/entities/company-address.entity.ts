@@ -12,12 +12,15 @@ export interface CreateCompanyAddressParams {
   line1: string;
   city: string;
   country: string;
+  contactName: string;
+  contactPhone: string;
   line2?: string | null;
   reference?: string | null;
   state?: string | null;
   zip?: string | null;
   isBilling?: boolean;
   isShipping?: boolean;
+  isPrimary?: boolean;
 }
 
 export class CompanyAddressEntity {
@@ -31,8 +34,11 @@ export class CompanyAddressEntity {
   state: string | null;
   country: string;
   zip: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
   isBilling: boolean;
   isShipping: boolean;
+  isPrimary: boolean;
   createdAt: Date;
   updatedAt: Date;
 
@@ -48,8 +54,11 @@ export class CompanyAddressEntity {
     entity.state = prisma.state;
     entity.country = prisma.country;
     entity.zip = prisma.zip;
+    entity.contactName = prisma.contactName;
+    entity.contactPhone = prisma.contactPhone;
     entity.isBilling = prisma.isBilling;
     entity.isShipping = prisma.isShipping;
+    entity.isPrimary = prisma.isPrimary;
     entity.createdAt = prisma.createdAt;
     entity.updatedAt = prisma.updatedAt;
     return entity;
@@ -69,8 +78,11 @@ export class CompanyAddressEntity {
     entity.state = trimOrNull(params.state);
     entity.country = params.country.trim();
     entity.zip = trimOrNull(params.zip);
+    entity.contactName = params.contactName.trim();
+    entity.contactPhone = params.contactPhone.trim();
     entity.isBilling = params.isBilling ?? false;
     entity.isShipping = params.isShipping ?? true;
+    entity.isPrimary = params.isPrimary ?? false;
     entity.createdAt = new Date();
     entity.updatedAt = new Date();
     return entity;
@@ -86,8 +98,11 @@ export class CompanyAddressEntity {
       state: this.state,
       country: this.country,
       zip: this.zip,
+      contactName: this.contactName,
+      contactPhone: this.contactPhone,
       isBilling: this.isBilling,
       isShipping: this.isShipping,
+      isPrimary: this.isPrimary,
       company: { connect: { id: this.companyId } },
     };
   }
