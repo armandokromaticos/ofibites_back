@@ -3,9 +3,11 @@ import { ThrottlerModule } from "@nestjs/throttler";
 import { USER_REPOSITORY } from "../../core/domain/repositories/user.repository.interface";
 import { COMPANY_MEMBER_REPOSITORY } from "../../core/domain/repositories/company-member.repository.interface";
 import { COMPANY_REPOSITORY } from "../../core/domain/repositories/company.repository.interface";
+import { NOTIFICATION_PREFERENCE_REPOSITORY } from "../../core/domain/repositories/notification-preference.repository.interface";
 import { UserRepository } from "../../core/infrastructure/repositories/user.repository";
 import { CompanyMemberRepository } from "../../core/infrastructure/repositories/company-member.repository";
 import { CompanyRepository } from "../../core/infrastructure/repositories/company.repository";
+import { NotificationPreferenceRepository } from "../../core/infrastructure/repositories/notification-preference.repository";
 import { LoginUseCase } from "../../core/application/use-cases/auth/login.use-case";
 import { RefreshTokenUseCase } from "../../core/application/use-cases/auth/refresh-token.use-case";
 import { LogoutUseCase } from "../../core/application/use-cases/auth/logout.use-case";
@@ -16,6 +18,8 @@ import { UpdateMeUseCase } from "../../core/application/use-cases/auth/update-me
 import { ChangePasswordUseCase } from "../../core/application/use-cases/auth/change-password.use-case";
 import { UploadAvatarUseCase } from "../../core/application/use-cases/auth/upload-avatar.use-case";
 import { DeleteAvatarUseCase } from "../../core/application/use-cases/auth/delete-avatar.use-case";
+import { GetNotificationPreferencesUseCase } from "../../core/application/use-cases/auth/get-notification-preferences.use-case";
+import { UpdateNotificationPreferencesUseCase } from "../../core/application/use-cases/auth/update-notification-preferences.use-case";
 import {
   AUTH_THROTTLE_TTL_MS,
   RESET_PASSWORD_THROTTLE_LIMIT,
@@ -55,6 +59,10 @@ import { PlatformOrCompanyRoleGuard } from "./guards/platform-or-company-role.gu
       provide: COMPANY_REPOSITORY,
       useClass: CompanyRepository,
     },
+    {
+      provide: NOTIFICATION_PREFERENCE_REPOSITORY,
+      useClass: NotificationPreferenceRepository,
+    },
     LoginUseCase,
     RefreshTokenUseCase,
     LogoutUseCase,
@@ -65,6 +73,8 @@ import { PlatformOrCompanyRoleGuard } from "./guards/platform-or-company-role.gu
     ChangePasswordUseCase,
     UploadAvatarUseCase,
     DeleteAvatarUseCase,
+    GetNotificationPreferencesUseCase,
+    UpdateNotificationPreferencesUseCase,
     JwtAuthGuard,
     RolesGuard,
     CompanyRoleGuard,
