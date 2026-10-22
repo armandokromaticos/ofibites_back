@@ -19,6 +19,7 @@ import {
   AVATAR_MAX_BYTES,
   deleteAvatarBestEffort,
   detectAvatarImageType,
+  withStorageRetry,
 } from "./avatar-storage";
 
 export interface AvatarActor {
@@ -84,11 +85,13 @@ export class UploadAvatarUseCase {
     const path = `${actor.id}/${randomUUID()}.${imageType.ext}`;
     let publicUrl: string;
     try {
-      publicUrl = await this.supabaseService.uploadFile(
-        AVATAR_BUCKET,
-        path,
-        file.buffer,
-        imageType.mimetype,
+      publicUrl = await withStorageRetry(() =>
+        this.supabaseService.uploadFile(
+          AVATAR_BUCKET,
+          path,
+          file.buffer,
+          imageType.mimetype,
+        ),
       );
     } catch (error) {
       this.logger.error(
