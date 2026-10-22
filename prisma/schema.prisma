@@ -25,6 +25,8 @@ model User {
   updatedAt         DateTime  @updatedAt @map("updated_at")
   /// Última vez que el usuario cambió o restableció su contraseña (T-30a).
   passwordChangedAt DateTime? @map("password_changed_at")
+  /// URL pública de la foto de perfil en el bucket `avatars` (T-30c).
+  avatarUrl         String?   @map("avatar_url")
 
   orders                Order[]                      @relation("OrderUser")
   createdOrders         Order[]                      @relation("OrderCreatedBy")

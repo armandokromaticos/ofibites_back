@@ -14,6 +14,8 @@ import { ForgotPasswordUseCase } from "../../core/application/use-cases/auth/for
 import { ResetPasswordUseCase } from "../../core/application/use-cases/auth/reset-password.use-case";
 import { UpdateMeUseCase } from "../../core/application/use-cases/auth/update-me.use-case";
 import { ChangePasswordUseCase } from "../../core/application/use-cases/auth/change-password.use-case";
+import { UploadAvatarUseCase } from "../../core/application/use-cases/auth/upload-avatar.use-case";
+import { DeleteAvatarUseCase } from "../../core/application/use-cases/auth/delete-avatar.use-case";
 import {
   AUTH_THROTTLE_TTL_MS,
   RESET_PASSWORD_THROTTLE_LIMIT,
@@ -61,6 +63,8 @@ import { PlatformOrCompanyRoleGuard } from "./guards/platform-or-company-role.gu
     ResetPasswordUseCase,
     UpdateMeUseCase,
     ChangePasswordUseCase,
+    UploadAvatarUseCase,
+    DeleteAvatarUseCase,
     JwtAuthGuard,
     RolesGuard,
     CompanyRoleGuard,

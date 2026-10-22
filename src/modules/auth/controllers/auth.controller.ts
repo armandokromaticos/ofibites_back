@@ -1,17 +1,22 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   HttpCode,
   HttpStatus,
   Patch,
   Post,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiConsumes,
   ApiHeader,
   ApiOkResponse,
   ApiOperation,
@@ -23,6 +28,9 @@ import { UpdateMeDto } from "../../../core/application/dto/auth/update-me.dto";
 import { ChangePasswordDto } from "../../../core/application/dto/auth/change-password.dto";
 import { UpdateMeUseCase } from "../../../core/application/use-cases/auth/update-me.use-case";
 import { ChangePasswordUseCase } from "../../../core/application/use-cases/auth/change-password.use-case";
+import { UploadAvatarUseCase } from "../../../core/application/use-cases/auth/upload-avatar.use-case";
+import { DeleteAvatarUseCase } from "../../../core/application/use-cases/auth/delete-avatar.use-case";
+import { AVATAR_MAX_BYTES } from "../../../core/application/use-cases/auth/avatar-storage";
 import { parseOptionalCompanyIdHeader } from "../../../core/application/shared/company-id-header.util";
 import { RolesGuard } from "../guards/roles.guard";
 import { UserThrottlerGuard } from "../guards/user-throttler.guard";
@@ -66,6 +74,8 @@ export class AuthController {
     private readonly resetPasswordUseCase: ResetPasswordUseCase,
     private readonly updateMeUseCase: UpdateMeUseCase,
     private readonly changePasswordUseCase: ChangePasswordUseCase,
+    private readonly uploadAvatarUseCase: UploadAvatarUseCase,
+    private readonly deleteAvatarUseCase: DeleteAvatarUseCase,
   ) {}
 
   @Post("login")
@@ -178,6 +188,69 @@ export class AuthController {
       dto as UpdateMeDto,
       companyId,
     );
+  }
+
+  @Post("me/avatar")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(...ALL_ROLES)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  // Tope de multer al doble del máximo para no cargar en memoria archivos
+  // enormes; el límite real (2 MB, 400 con mensaje propio) lo aplica el use-case.
+  @UseInterceptors(
+    FileInterceptor("file", { limits: { fileSize: AVATAR_MAX_BYTES * 2 } }),
+  )
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: { file: { type: "string", format: "binary" } },
+      required: ["file"],
+    },
+  })
+  @ApiOperation({
+    summary: "Subir o reemplazar mi foto de perfil",
+    description:
+      "Campo file: JPG o PNG (comprobado por los bytes), máximo 2.000.000 bytes. Se guarda en el bucket avatars y se borra la foto anterior. Devuelve la misma forma que GET /auth/me.",
+  })
+  @ApiOkResponse({ type: MeResponseDto })
+  @ApiResponse({
+    status: 400,
+    description:
+      "Sin archivo, formato no permitido, contenido que no es imagen o más de 2 MB.",
+  })
+  @ApiResponse({ status: 413, description: "Archivo de más de 4 MB." })
+  @ApiResponse({ status: 503, description: "Storage no disponible." })
+  async uploadAvatar(
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() user: { id: string; authId: string },
+  ): Promise<MeResponseDto> {
+    return this.uploadAvatarUseCase.execute(
+      { id: user.id, authId: user.authId },
+      file
+        ? { buffer: file.buffer, mimetype: file.mimetype, size: file.size }
+        : undefined,
+    );
+  }
+
+  @Delete("me/avatar")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(...ALL_ROLES)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Quitar mi foto de perfil",
+    description:
+      "Pone avatarUrl en null y borra el archivo del bucket. Idempotente. Devuelve la misma forma que GET /auth/me.",
+  })
+  @ApiOkResponse({ type: MeResponseDto })
+  async deleteAvatar(
+    @CurrentUser() user: { id: string; authId: string },
+  ): Promise<MeResponseDto> {
+    return this.deleteAvatarUseCase.execute({
+      id: user.id,
+      authId: user.authId,
+    });
   }
 
   @Post("change-password")

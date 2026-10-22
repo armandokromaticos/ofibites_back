@@ -45,4 +45,12 @@ export class UserResponseDto {
       "Última vez que cambió o restableció su contraseña. Nulo si nunca lo hizo desde que existe el dato.",
   })
   passwordChangedAt: Date | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description:
+      "URL pública de la foto de perfil (bucket avatars). Nula si no tiene foto.",
+  })
+  avatarUrl: string | null;
 }
