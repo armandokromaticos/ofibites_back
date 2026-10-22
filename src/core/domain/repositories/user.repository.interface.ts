@@ -12,4 +12,6 @@ export interface IUserRepository {
   update(args: Prisma.UserUpdateArgs): Promise<UserEntity>;
   delete(id: string): Promise<void>;
   exists(args: Prisma.UserCountArgs): Promise<boolean>;
+  /** Marca `passwordChangedAt`; no falla si no hay fila para ese authId. */
+  markPasswordChangedByAuthId(authId: string, at: Date): Promise<void>;
 }

@@ -1,11 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
-import {
-  IsNotEmpty,
-  IsString,
-  Matches,
-  MaxLength,
-  MinLength,
-} from "class-validator";
+import { IsNotEmpty, IsString, MaxLength } from "class-validator";
+import { IsPasswordPolicy } from "./password-policy.decorator";
 
 export class ResetPasswordDto {
   @ApiProperty({
@@ -24,21 +19,6 @@ export class ResetPasswordDto {
     description:
       "Mínimo 8 caracteres, una mayúscula, una minúscula, un número, un símbolo y sin espacios.",
   })
-  @IsString({ message: "La contraseña debe ser texto" })
-  @MinLength(8, { message: "La contraseña debe tener al menos 8 caracteres" })
-  @MaxLength(72, {
-    message: "La contraseña admite como máximo 72 caracteres",
-  })
-  @Matches(/[A-Z]/, {
-    message: "La contraseña debe incluir al menos una letra mayúscula",
-  })
-  @Matches(/[a-z]/, {
-    message: "La contraseña debe incluir al menos una letra minúscula",
-  })
-  @Matches(/\d/, { message: "La contraseña debe incluir al menos un número" })
-  @Matches(/[^A-Za-z0-9\s]/, {
-    message: "La contraseña debe incluir al menos un símbolo",
-  })
-  @Matches(/^\S+$/, { message: "La contraseña no puede contener espacios" })
+  @IsPasswordPolicy()
   password: string;
 }

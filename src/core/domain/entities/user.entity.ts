@@ -23,6 +23,8 @@ export class UserEntity {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  passwordChangedAt: Date | null;
+  avatarUrl: string | null;
 
   static fromPrisma(prismaUser: PrismaUser): UserEntity {
     const entity = new UserEntity();
@@ -39,6 +41,8 @@ export class UserEntity {
     entity.isActive = prismaUser.isActive;
     entity.createdAt = prismaUser.createdAt;
     entity.updatedAt = prismaUser.updatedAt;
+    entity.passwordChangedAt = prismaUser.passwordChangedAt ?? null;
+    entity.avatarUrl = prismaUser.avatarUrl ?? null;
     return entity;
   }
 
@@ -54,6 +58,8 @@ export class UserEntity {
     entity.isActive = params.isActive ?? true;
     entity.createdAt = new Date();
     entity.updatedAt = new Date();
+    entity.passwordChangedAt = null;
+    entity.avatarUrl = null;
     return entity;
   }
 
@@ -83,6 +89,8 @@ export class UserEntity {
     dto.isActive = this.isActive;
     dto.createdAt = this.createdAt;
     dto.updatedAt = this.updatedAt;
+    dto.passwordChangedAt = this.passwordChangedAt;
+    dto.avatarUrl = this.avatarUrl;
     return dto;
   }
 }

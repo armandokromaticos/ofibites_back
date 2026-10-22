@@ -52,4 +52,11 @@ export class UserRepository implements IUserRepository {
     const count = await this.prisma.user.count(args);
     return count > 0;
   }
+
+  async markPasswordChangedByAuthId(authId: string, at: Date): Promise<void> {
+    await this.prisma.user.updateMany({
+      where: { authId },
+      data: { passwordChangedAt: at },
+    });
+  }
 }

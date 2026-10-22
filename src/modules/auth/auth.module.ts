@@ -12,6 +12,10 @@ import { LogoutUseCase } from "../../core/application/use-cases/auth/logout.use-
 import { GetMeUseCase } from "../../core/application/use-cases/auth/get-me.use-case";
 import { ForgotPasswordUseCase } from "../../core/application/use-cases/auth/forgot-password.use-case";
 import { ResetPasswordUseCase } from "../../core/application/use-cases/auth/reset-password.use-case";
+import { UpdateMeUseCase } from "../../core/application/use-cases/auth/update-me.use-case";
+import { ChangePasswordUseCase } from "../../core/application/use-cases/auth/change-password.use-case";
+import { UploadAvatarUseCase } from "../../core/application/use-cases/auth/upload-avatar.use-case";
+import { DeleteAvatarUseCase } from "../../core/application/use-cases/auth/delete-avatar.use-case";
 import {
   AUTH_THROTTLE_TTL_MS,
   RESET_PASSWORD_THROTTLE_LIMIT,
@@ -24,7 +28,7 @@ import { PlatformOrCompanyRoleGuard } from "./guards/platform-or-company-role.gu
 
 @Module({
   imports: [
-    // Solo aplica donde se usa @UseGuards(ThrottlerGuard) (forgot/reset-password).
+    // Solo aplica donde se usa @UseGuards(ThrottlerGuard) (forgot/reset/change-password).
     ThrottlerModule.forRoot({
       throttlers: [
         {
@@ -57,6 +61,10 @@ import { PlatformOrCompanyRoleGuard } from "./guards/platform-or-company-role.gu
     GetMeUseCase,
     ForgotPasswordUseCase,
     ResetPasswordUseCase,
+    UpdateMeUseCase,
+    ChangePasswordUseCase,
+    UploadAvatarUseCase,
+    DeleteAvatarUseCase,
     JwtAuthGuard,
     RolesGuard,
     CompanyRoleGuard,
