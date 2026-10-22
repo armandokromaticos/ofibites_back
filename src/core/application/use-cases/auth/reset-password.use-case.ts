@@ -1,11 +1,14 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   Logger,
   ServiceUnavailableException,
   UnauthorizedException,
 } from "@nestjs/common";
 import { isAuthError, isAuthRetryableFetchError } from "@supabase/supabase-js";
+import type { IUserRepository } from "../../../domain/repositories/user.repository.interface";
+import { USER_REPOSITORY } from "../../../domain/repositories/user.repository.interface";
 import { SupabaseService } from "../../../infrastructure/supabase/supabase.service";
 import { ResetPasswordDto } from "../../dto/auth/reset-password.dto";
 
@@ -37,7 +40,11 @@ type AmrClaim = Array<{ method: string; timestamp: number } | string>;
 export class ResetPasswordUseCase {
   private readonly logger = new Logger(ResetPasswordUseCase.name);
 
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    @Inject(USER_REPOSITORY)
+    private readonly userRepository: IUserRepository,
+  ) {}
 
   async execute(dto: ResetPasswordDto): Promise<void> {
     const supabase = this.supabaseService.getAdmin();
@@ -103,7 +110,19 @@ export class ResetPasswordUseCase {
       }
     }
 
-    // Best-effort: la contraseña ya cambió, así que un fallo aquí no se propaga.
+    // Best-effort: la contraseña ya cambió, así que estos fallos no se propagan.
+    // updateMany: una cuenta de Auth sin fila en `users` no debe dar error.
+    try {
+      await this.userRepository.markPasswordChangedByAuthId(
+        authUser.id,
+        new Date(),
+      );
+    } catch (err) {
+      this.logger.error(
+        `No se pudo marcar passwordChangedAt de authId ${authUser.id}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+
     try {
       const { error: signOutError } = await supabase.auth.admin.signOut(
         dto.accessToken,

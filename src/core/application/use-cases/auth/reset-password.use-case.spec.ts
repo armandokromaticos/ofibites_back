@@ -6,6 +6,7 @@ import {
 import { AuthError, AuthRetryableFetchError } from "@supabase/supabase-js";
 import { ResetPasswordUseCase } from "./reset-password.use-case";
 import type { SupabaseService } from "../../../infrastructure/supabase/supabase.service";
+import type { IUserRepository } from "../../../domain/repositories/user.repository.interface";
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 const claimsWithAmr = (amr: unknown, iat = nowSeconds()) => ({
@@ -24,7 +25,12 @@ describe("ResetPasswordUseCase", () => {
     }),
   } as unknown as SupabaseService;
 
-  const useCase = new ResetPasswordUseCase(supabaseService);
+  const markPasswordChangedByAuthId = jest.fn();
+  const userRepository = {
+    markPasswordChangedByAuthId,
+  } as unknown as IUserRepository;
+
+  const useCase = new ResetPasswordUseCase(supabaseService, userRepository);
   const dto = { accessToken: "token-recuperacion", password: "Nueva#Clave1" };
 
   beforeEach(() => {
@@ -41,6 +47,8 @@ describe("ResetPasswordUseCase", () => {
     );
     updateUserById.mockResolvedValue({ data: {}, error: null });
     signOut.mockResolvedValue({ error: null });
+    markPasswordChangedByAuthId.mockReset();
+    markPasswordChangedByAuthId.mockResolvedValue(undefined);
   });
 
   it("cambia la contraseña y cierra todas las sesiones", async () => {
@@ -51,6 +59,17 @@ describe("ResetPasswordUseCase", () => {
     expect(updateUserById).toHaveBeenCalledWith("auth-1", {
       password: "Nueva#Clave1",
     });
+    expect(signOut).toHaveBeenCalledWith("token-recuperacion", "global");
+    expect(markPasswordChangedByAuthId).toHaveBeenCalledWith(
+      "auth-1",
+      expect.any(Date),
+    );
+  });
+
+  it("no falla si no se puede marcar passwordChangedAt", async () => {
+    markPasswordChangedByAuthId.mockRejectedValue(new Error("db caída"));
+
+    await expect(useCase.execute(dto)).resolves.toBeUndefined();
     expect(signOut).toHaveBeenCalledWith("token-recuperacion", "global");
   });
 

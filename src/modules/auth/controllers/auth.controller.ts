@@ -5,10 +5,29 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   UseGuards,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiHeader,
+  ApiOkResponse,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from "@nestjs/swagger";
+import { Role } from "../../../core/domain/enums/role.enum";
+import { UpdateMeDto } from "../../../core/application/dto/auth/update-me.dto";
+import { ChangePasswordDto } from "../../../core/application/dto/auth/change-password.dto";
+import { UpdateMeUseCase } from "../../../core/application/use-cases/auth/update-me.use-case";
+import { ChangePasswordUseCase } from "../../../core/application/use-cases/auth/change-password.use-case";
+import { parseOptionalCompanyIdHeader } from "../../../core/application/shared/company-id-header.util";
+import { RolesGuard } from "../guards/roles.guard";
+import { UserThrottlerGuard } from "../guards/user-throttler.guard";
+import { Roles } from "../decorators/roles.decorator";
+import { strictBodyPipe } from "../strict-body.pipe";
 import { LoginDto } from "../../../core/application/dto/auth/login.dto";
 import { RefreshTokenDto } from "../../../core/application/dto/auth/refresh-token.dto";
 import { AuthResponseDto } from "../../../core/application/dto/auth/auth-response.dto";
@@ -24,11 +43,16 @@ import { ResetPasswordUseCase } from "../../../core/application/use-cases/auth/r
 import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
 import {
   AUTH_THROTTLE_TTL_MS,
+  CHANGE_PASSWORD_THROTTLE_LIMIT,
   FORGOT_PASSWORD_THROTTLE_LIMIT,
   RESET_PASSWORD_THROTTLE_LIMIT,
 } from "../auth-throttle.constants";
 import { CurrentUser } from "../decorators/current-user.decorator";
 import { JwtAuthGuard } from "../guards/jwt-auth.guard";
+
+// "Cualquier usuario autenticado y activo": RolesGuard solo resuelve `user.id`
+// desde la BD (JwtAuthGuard deja únicamente authId/email).
+const ALL_ROLES = Object.values(Role);
 
 @ApiTags("Auth")
 @Controller("auth")
@@ -40,6 +64,8 @@ export class AuthController {
     private readonly getMeUseCase: GetMeUseCase,
     private readonly forgotPasswordUseCase: ForgotPasswordUseCase,
     private readonly resetPasswordUseCase: ResetPasswordUseCase,
+    private readonly updateMeUseCase: UpdateMeUseCase,
+    private readonly changePasswordUseCase: ChangePasswordUseCase,
   ) {}
 
   @Post("login")
@@ -112,5 +138,81 @@ export class AuthController {
   })
   async me(@CurrentUser() user: { authId: string }): Promise<MeResponseDto> {
     return this.getMeUseCase.execute(user.authId);
+  }
+
+  @Patch("me")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(...ALL_ROLES)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "Actualizar mi perfil (nombre, teléfono y cargo)",
+    description:
+      "Edita name/phone del usuario del token y, si viene position, el cargo de su membresía activa en la empresa de X-Company-Id. Al menos un campo. Devuelve la misma forma que GET /auth/me.",
+  })
+  @ApiHeader({
+    name: "X-Company-Id",
+    required: false,
+    description: "Obligatorio solo si se envía position.",
+  })
+  @ApiOkResponse({ type: MeResponseDto })
+  @ApiResponse({
+    status: 400,
+    description:
+      "Validación, cuerpo sin campos, position sin X-Company-Id o X-Company-Id inválido.",
+  })
+  @ApiResponse({
+    status: 403,
+    description:
+      "Usuario desactivado o sin membresía activa en X-Company-Id (si se envía position).",
+  })
+  @ApiBody({ type: UpdateMeDto })
+  async updateMe(
+    // Record (no UpdateMeDto): ver strictBodyPipe; llega ya como UpdateMeDto.
+    @Body(strictBodyPipe(UpdateMeDto)) dto: Record<string, unknown>,
+    @CurrentUser() user: { id: string; authId: string },
+    @Headers("x-company-id") companyIdHeader?: string,
+  ): Promise<MeResponseDto> {
+    const companyId = parseOptionalCompanyIdHeader(companyIdHeader);
+    return this.updateMeUseCase.execute(
+      { id: user.id, authId: user.authId },
+      dto as UpdateMeDto,
+      companyId,
+    );
+  }
+
+  @Post("change-password")
+  // Throttle por IP (antes del JWT) y por usuario (después), mismos límites.
+  @UseGuards(ThrottlerGuard, JwtAuthGuard, UserThrottlerGuard, RolesGuard)
+  @Roles(...ALL_ROLES)
+  @Throttle({
+    default: {
+      limit: CHANGE_PASSWORD_THROTTLE_LIMIT,
+      ttl: AUTH_THROTTLE_TTL_MS,
+    },
+  })
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: "Cambiar mi contraseña",
+    description:
+      "Verifica la contraseña actual, aplica la nueva (misma política que reset-password), marca passwordChangedAt y cierra las demás sesiones (la actual sigue válida). Contraseña actual incorrecta → 400, no 401. 429 por el límite por IP o por usuario (10 cada 15 min cada uno).",
+  })
+  @ApiResponse({ status: 204, description: "Contraseña cambiada." })
+  @ApiResponse({
+    status: 400,
+    description:
+      "Política no cumplida, contraseña actual incorrecta o nueva igual a la actual.",
+  })
+  async changePassword(
+    @Body() dto: ChangePasswordDto,
+    @CurrentUser() user: { id: string; authId: string; email: string },
+    @Headers("authorization") auth: string,
+  ): Promise<void> {
+    const token = auth.replace(/^Bearer\s+/i, "");
+    await this.changePasswordUseCase.execute(
+      { id: user.id, authId: user.authId, email: user.email },
+      token,
+      dto,
+    );
   }
 }

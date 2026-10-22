@@ -4,3 +4,5 @@ export const AUTH_THROTTLE_TTL_MS = 15 * 60 * 1000;
 export const FORGOT_PASSWORD_THROTTLE_LIMIT = 5;
 /** Intentos de restablecer contraseña por IP y ventana. */
 export const RESET_PASSWORD_THROTTLE_LIMIT = 10;
+/** Intentos de cambiar la contraseña (con sesión) por IP y ventana. */
+export const CHANGE_PASSWORD_THROTTLE_LIMIT = 10;

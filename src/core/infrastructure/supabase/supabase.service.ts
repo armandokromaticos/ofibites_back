@@ -24,6 +24,25 @@ export class SupabaseService {
     return this.client;
   }
 
+  /**
+   * Cliente nuevo y desechable, sin persistir ni refrescar sesión. Para
+   * operaciones que inician sesión como un usuario (p. ej. verificar su
+   * contraseña actual) sin dejar esa sesión en el cliente admin compartido.
+   */
+  createEphemeralClient(): SupabaseClientType {
+    return createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+          detectSessionInUrl: false,
+        },
+      },
+    );
+  }
+
   async uploadFile(
     bucket: string,
     path: string,

@@ -36,4 +36,13 @@ export class UserResponseDto {
 
   @ApiProperty()
   updatedAt: Date;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    format: "date-time",
+    description:
+      "Última vez que cambió o restableció su contraseña. Nulo si nunca lo hizo desde que existe el dato.",
+  })
+  passwordChangedAt: Date | null;
 }
