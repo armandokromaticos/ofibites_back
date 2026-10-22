@@ -21,7 +21,10 @@ export class GetCompanyMemberUseCase {
     await assertCompanyAccess(callerUserId, callerRole, companyId, {
       companyMemberRepository: this.memberRepository,
     });
-    const member = await this.memberRepository.findUnique({ where: { id } });
+    const member = await this.memberRepository.findUnique({
+      where: { id },
+      include: { user: { select: { name: true, email: true, phone: true } } },
+    });
     if (!member || member.companyId !== companyId) {
       throw new NotFoundException(
         `Member ${id} not found in company ${companyId}`,

@@ -86,7 +86,13 @@ export class CreateCompanyMemberUseCase {
     });
 
     try {
-      return await this.memberRepository.create(entity);
+      const created = await this.memberRepository.create(entity);
+      // Ya tenemos el User a mano (lo buscamos arriba): evita pedir el
+      // include de nuevo al repositorio solo para esto.
+      created.userName = user.name;
+      created.userEmail = user.email;
+      created.userPhone = user.phone;
+      return created;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&

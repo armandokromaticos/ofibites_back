@@ -9,6 +9,15 @@ export class CompanyMemberResponseDto {
   @ApiProperty()
   userId: string;
 
+  @ApiProperty({ description: "Nombre del User asociado" })
+  name: string;
+
+  @ApiProperty({ description: "Correo del User asociado (no editable aquí)" })
+  email: string;
+
+  @ApiPropertyOptional({ nullable: true, type: String })
+  phone: string | null;
+
   @ApiProperty()
   companyId: string;
 
@@ -43,6 +52,9 @@ export class CompanyMemberResponseDto {
     const dto = new CompanyMemberResponseDto();
     dto.id = entity.id;
     dto.userId = entity.userId;
+    dto.name = entity.userName ?? "";
+    dto.email = entity.userEmail ?? "";
+    dto.phone = entity.userPhone ?? null;
     dto.companyId = entity.companyId;
     dto.role = entity.role;
     dto.position = entity.position;

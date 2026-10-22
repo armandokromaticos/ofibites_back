@@ -11,6 +11,7 @@ import { GetCompanyMembersUseCase } from "../../core/application/use-cases/compa
 import { UpdateCompanyMemberUseCase } from "../../core/application/use-cases/company-members/update-company-member.use-case";
 import { DeleteCompanyMemberUseCase } from "../../core/application/use-cases/company-members/delete-company-member.use-case";
 import { ResendCompanyMemberInviteUseCase } from "../../core/application/use-cases/company-members/resend-company-member-invite.use-case";
+import { ResetCompanyMemberPasswordUseCase } from "../../core/application/use-cases/company-members/reset-company-member-password.use-case";
 
 @Module({
   imports: [AuthModule, CompaniesModule, BranchesModule, DepartmentsModule],
@@ -23,6 +24,7 @@ import { ResendCompanyMemberInviteUseCase } from "../../core/application/use-cas
     UpdateCompanyMemberUseCase,
     DeleteCompanyMemberUseCase,
     ResendCompanyMemberInviteUseCase,
+    ResetCompanyMemberPasswordUseCase,
   ],
   exports: [InviteCompanyMemberUseCase],
 })

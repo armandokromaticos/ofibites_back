@@ -12,6 +12,17 @@ export interface CreateCompanyMemberParams {
   isActive?: boolean;
 }
 
+/**
+ * Fila de `CompanyMember` con el `user` relacionado opcionalmente incluido
+ * (`include: { user: { select: { name, email, phone } } }`). El repositorio
+ * genérico (`findMany`/`findUnique`) sigue devolviendo el tipo base de Prisma,
+ * así que esta forma amplía esa base sin exigir la relación: solo se
+ * completa cuando el caller pidió el include.
+ */
+type PrismaCompanyMemberWithUser = PrismaCompanyMember & {
+  user?: { name: string; email: string; phone: string | null };
+};
+
 export class CompanyMemberEntity {
   id: string;
   userId: string;
@@ -25,8 +36,17 @@ export class CompanyMemberEntity {
   lastSeenAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  /**
+   * Datos del `User` asociado. Solo presentes si `fromPrisma` recibió la fila
+   * con `user` incluido, o si un use-case los asignó a mano tras crear/
+   * actualizar el miembro (cuando ya tenía el `UserEntity` a mano y no valía
+   * la pena pedir el include de nuevo).
+   */
+  userName?: string;
+  userEmail?: string;
+  userPhone?: string | null;
 
-  static fromPrisma(prisma: PrismaCompanyMember): CompanyMemberEntity {
+  static fromPrisma(prisma: PrismaCompanyMemberWithUser): CompanyMemberEntity {
     const entity = new CompanyMemberEntity();
     entity.id = prisma.id;
     entity.userId = prisma.userId;
@@ -43,6 +63,11 @@ export class CompanyMemberEntity {
     entity.lastSeenAt = prisma.lastSeenAt;
     entity.createdAt = prisma.createdAt;
     entity.updatedAt = prisma.updatedAt;
+    if (prisma.user) {
+      entity.userName = prisma.user.name;
+      entity.userEmail = prisma.user.email;
+      entity.userPhone = prisma.user.phone;
+    }
     return entity;
   }
 

@@ -29,6 +29,7 @@ import { InviteCompanyMemberDto } from "../../../core/application/dto/company-me
 import { UpdateCompanyMemberDto } from "../../../core/application/dto/company-members/update-company-member.dto";
 import { CompanyMemberResponseDto } from "../../../core/application/dto/company-members/company-member-response.dto";
 import { ResendMemberInviteResponseDto } from "../../../core/application/dto/company-members/resend-member-invite-response.dto";
+import { ResetMemberPasswordResponseDto } from "../../../core/application/dto/company-members/reset-member-password-response.dto";
 import { CreateCompanyMemberUseCase } from "../../../core/application/use-cases/company-members/create-company-member.use-case";
 import { InviteCompanyMemberUseCase } from "../../../core/application/use-cases/company-members/invite-company-member.use-case";
 import { GetCompanyMemberUseCase } from "../../../core/application/use-cases/company-members/get-company-member.use-case";
@@ -36,6 +37,7 @@ import { GetCompanyMembersUseCase } from "../../../core/application/use-cases/co
 import { UpdateCompanyMemberUseCase } from "../../../core/application/use-cases/company-members/update-company-member.use-case";
 import { DeleteCompanyMemberUseCase } from "../../../core/application/use-cases/company-members/delete-company-member.use-case";
 import { ResendCompanyMemberInviteUseCase } from "../../../core/application/use-cases/company-members/resend-company-member-invite.use-case";
+import { ResetCompanyMemberPasswordUseCase } from "../../../core/application/use-cases/company-members/reset-company-member-password.use-case";
 
 @ApiTags("Company Members")
 @ApiBearerAuth()
@@ -50,6 +52,7 @@ export class CompanyMembersController {
     private readonly updateUseCase: UpdateCompanyMemberUseCase,
     private readonly deleteUseCase: DeleteCompanyMemberUseCase,
     private readonly resendInviteUseCase: ResendCompanyMemberInviteUseCase,
+    private readonly resetPasswordUseCase: ResetCompanyMemberPasswordUseCase,
   ) {}
 
   @Post()
@@ -136,6 +139,38 @@ export class CompanyMembersController {
     @Param("id", ParseUUIDPipe) id: string,
   ): Promise<ResendMemberInviteResponseDto> {
     return this.resendInviteUseCase.execute(companyId, id);
+  }
+
+  @Post(":id/reset-password")
+  @HttpCode(200)
+  @PlatformOrCompanyRole({
+    platformRoles: [Role.SUPER_ADMIN, Role.OPS_ADMIN],
+    companyRoles: [CompanyRole.COMPANY_ADMIN],
+  })
+  @ApiOperation({
+    summary:
+      "Restablecer contraseña de un miembro con cuenta activa (envía el correo de recuperación de Supabase).",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Correo de restablecimiento enviado.",
+    type: ResetMemberPasswordResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      "Solicitud inválida (el miembro no tiene cuenta de acceso todavía; usa 'reenviar invitación').",
+  })
+  @ApiResponse({ status: 404, description: "Miembro no encontrado." })
+  @ApiResponse({
+    status: 429,
+    description: "Supabase rechazó el envío por límite de tasa.",
+  })
+  async resetPassword(
+    @Param("companyId", ParseUUIDPipe) companyId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ): Promise<ResetMemberPasswordResponseDto> {
+    return this.resetPasswordUseCase.execute(companyId, id);
   }
 
   @Get()
