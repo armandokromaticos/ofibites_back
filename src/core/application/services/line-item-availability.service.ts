@@ -32,15 +32,35 @@ import {
 import type {
   LineItemInput,
   LineItemPricingService,
+  PricedLineItem,
 } from "./line-item-pricing.service";
+
+/** 404 del pricing → NOT_FOUND, cualquier otro 4xx → CONFIGURATION; otro error se relanza. */
+function pricingErrorCode(error: unknown): LineAvailabilityCode {
+  if (error instanceof NotFoundException) return "NOT_FOUND";
+  if (error instanceof HttpException) return "CONFIGURATION";
+  throw error;
+}
+
+/**
+ * Lo mismo que `resolveUnavailabilityCode` con la regla y la cotización de la
+ * línea ya calculadas (en lote): sin consultas.
+ */
+export function unavailabilityCodeOf(
+  issue: LineAvailabilityIssue | null,
+  quote: PromiseSettledResult<PricedLineItem>,
+): LineAvailabilityCode | null {
+  if (issue) return issue.code;
+  return quote.status === "rejected" ? pricingErrorCode(quote.reason) : null;
+}
 
 /**
  * Motivo por el que una línea **ya guardada** (carrito o pedido) no se puede
  * pedir hoy, o null. El `code` sale de la regla única; `priceLineItem` queda
  * como red de seguridad (p. ej. el producto ancla de un combo que ya no
  * existe, que la regla no mira): su 404 → NOT_FOUND y cualquier otro 4xx →
- * CONFIGURATION, por tipo de excepción, sin leer mensajes. Lo usan "repetir en
- * el carrito" y el checkout.
+ * CONFIGURATION, por tipo de excepción, sin leer mensajes. Lo usa "repetir en
+ * el carrito"; el checkout, en lote, `unavailabilityCodeOf`.
  */
 export async function resolveUnavailabilityCode(
   availability: Pick<LineItemAvailabilityService, "check">,
@@ -53,9 +73,7 @@ export async function resolveUnavailabilityCode(
     await pricing.priceLineItem(input);
     return null;
   } catch (error) {
-    if (error instanceof NotFoundException) return "NOT_FOUND";
-    if (error instanceof HttpException) return "CONFIGURATION";
-    throw error;
+    return pricingErrorCode(error);
   }
 }
 

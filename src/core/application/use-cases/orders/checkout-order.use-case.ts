@@ -10,23 +10,21 @@ import { COMPANY_ADDRESS_REPOSITORY } from "../../../domain/repositories/company
 import { CartItemInfo } from "../../../domain/entities/cart.entity";
 import { OrderEntity } from "../../../domain/entities/order.entity";
 import { CartChangedException } from "../../../domain/exceptions/cart-changed.exception";
-import { LineAvailabilityCode } from "../../../domain/services/line-availability";
+import { LineAvailabilityIssue } from "../../../domain/services/line-availability";
 import { Lang } from "../../../domain/enums/lang.enum";
 import { Role } from "../../../domain/enums/role.enum";
 import {
   LineItemInput,
   LineItemPricingService,
+  PricedLineItem,
+  toOrderItems,
 } from "../../services/line-item-pricing.service";
 import {
   LineItemAvailabilityService,
-  resolveUnavailabilityCode,
+  unavailabilityCodeOf,
 } from "../../services/line-item-availability.service";
 import { assertCompanyActive } from "../../shared/company-active.guard";
 import { settleInOrder } from "../../shared/settle-in-order.util";
-import {
-  LINE_CONCURRENCY,
-  mapWithConcurrency,
-} from "../../shared/map-with-concurrency.util";
 import { deliveryCutoffError } from "../../shared/delivery-cutoff";
 import {
   checkoutBadRequest,
@@ -122,7 +120,13 @@ export class CheckoutOrderUseCase {
     }
 
     const inputs = cart.items.map(toLineInput);
-    const unavailable = await this.findUnavailable(cart.items, inputs);
+    // Una sola pasada en lote: disponibilidad y precio a la vez. El precio
+    // que se guarda es el de esta lectura del catálogo, nunca el del cliente.
+    const [issues, quotes] = await Promise.all([
+      this.lineItemAvailability.checkMany(inputs),
+      this.lineItemPricingService.priceLinesSettled(inputs),
+    ]);
+    const unavailable = this.findUnavailable(cart.items, issues, quotes);
     if (unavailable.length > 0) {
       throw checkoutBadRequest(
         CheckoutErrorCode.CART_ITEMS_UNAVAILABLE,
@@ -131,8 +135,13 @@ export class CheckoutOrderUseCase {
       );
     }
 
-    // Precios recalculados contra el catálogo actual, nunca los del cliente.
-    const items = await this.lineItemPricingService.priceOrderLines(inputs);
+    const items = toOrderItems(
+      inputs,
+      quotes.map((quote) => {
+        if (quote.status === "rejected") throw quote.reason;
+        return quote.value;
+      }),
+    );
     const summary = buildOrderSummary(items.map((item) => item.subtotal));
     // El usuario confirma lo que vio: si el total cambió (precios, tarifa de
     // envío), no se crea el pedido.
@@ -212,17 +221,14 @@ export class CheckoutOrderUseCase {
    * y, como red de seguridad, que la línea se pueda cotizar: es lo mismo que
    * hace "repetir en el carrito", con los mismos motivos para el usuario.
    */
-  private async findUnavailable(
+  private findUnavailable(
     cartItems: CartItemInfo[],
-    inputs: LineItemInput[],
-  ): Promise<CheckoutUnavailableLine[]> {
-    // Hasta LINE_CONCURRENCY líneas a la vez; el resultado sigue el orden del carrito.
-    const codes = await mapWithConcurrency(inputs, LINE_CONCURRENCY, (input) =>
-      this.unavailabilityCode(input),
-    );
+    issues: (LineAvailabilityIssue | null)[],
+    quotes: PromiseSettledResult<PricedLineItem>[],
+  ): CheckoutUnavailableLine[] {
     const result: CheckoutUnavailableLine[] = [];
     for (const [index, item] of cartItems.entries()) {
-      const code = codes[index];
+      const code = unavailabilityCodeOf(issues[index], quotes[index]);
       if (!code) continue;
       const display = item.display;
       result.push({
@@ -236,16 +242,5 @@ export class CheckoutOrderUseCase {
       });
     }
     return result;
-  }
-
-  /** Ver `resolveUnavailabilityCode` (regla única + red de seguridad del pricing). */
-  private unavailabilityCode(
-    input: LineItemInput,
-  ): Promise<LineAvailabilityCode | null> {
-    return resolveUnavailabilityCode(
-      this.lineItemAvailability,
-      this.lineItemPricingService,
-      input,
-    );
   }
 }

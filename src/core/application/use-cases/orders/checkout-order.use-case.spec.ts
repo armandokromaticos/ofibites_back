@@ -13,7 +13,7 @@ import type { IOrderRepository } from "../../../domain/repositories/order.reposi
 import type { ICartRepository } from "../../../domain/repositories/cart.repository.interface";
 import type { ICompanyRepository } from "../../../domain/repositories/company.repository.interface";
 import type { ICompanyAddressRepository } from "../../../domain/repositories/company-address.repository.interface";
-import {
+import type {
   LineItemInput,
   LineItemPricingService,
 } from "../../services/line-item-pricing.service";
@@ -101,6 +101,8 @@ function setup(
     items?: CartItemInfo[];
     address?: { companyId: string; isShipping: boolean } | null;
     unavailable?: string[];
+    /** productId → error con que falla su cotización. */
+    priceErrors?: Record<string, Error>;
   } = {},
 ) {
   const items = options.items ?? [
@@ -124,33 +126,36 @@ function setup(
       ),
     ),
   };
+  const priceErrors = options.priceErrors ?? {};
+  // Única vía de cotización del checkout: un lote con un resultado por línea.
   const pricing = {
-    priceLineItem: jest.fn((input: LineItemInput) => {
-      const unitPrice = SERVER_PRICES[input.productId];
-      return Promise.resolve({
-        unitPrice,
-        subtotal: Math.round(unitPrice * input.quantity * 100) / 100,
-        modifiers: [],
-      });
-    }),
+    priceLinesSettled: jest.fn((inputs: LineItemInput[]) =>
+      Promise.resolve(
+        inputs.map((input): PromiseSettledResult<unknown> => {
+          const error = priceErrors[input.productId];
+          if (error) return { status: "rejected", reason: error };
+          const unitPrice = SERVER_PRICES[input.productId];
+          return {
+            status: "fulfilled",
+            value: {
+              unitPrice,
+              subtotal: Math.round(unitPrice * input.quantity * 100) / 100,
+              modifiers: [],
+            },
+          };
+        }),
+      ),
+    ),
   };
-  // Servicio real (priceOrderLines delega en priceLines) con priceLineItem
-  // simulado y priceLines cotizando con él línea a línea.
-  const pricingService = Object.assign(
-    Object.create(LineItemPricingService.prototype) as LineItemPricingService,
-    pricing,
-    {
-      priceLines: (inputs: LineItemInput[]) =>
-        Promise.all(inputs.map((input) => pricing.priceLineItem(input))),
-    },
-  );
   const unavailable = new Set(options.unavailable ?? []);
   const availability = {
-    check: jest.fn((input: LineItemInput) =>
+    checkMany: jest.fn((inputs: LineItemInput[]) =>
       Promise.resolve(
-        unavailable.has(input.productId)
-          ? { code: "UNAVAILABLE" as const, message: "no disponible" }
-          : null,
+        inputs.map((input) =>
+          unavailable.has(input.productId)
+            ? { code: "UNAVAILABLE" as const, message: "no disponible" }
+            : null,
+        ),
       ),
     ),
   };
@@ -161,7 +166,7 @@ function setup(
       findUnique: jest.fn(() => Promise.resolve({ isActive: true })),
     } as unknown as ICompanyRepository,
     addressRepository as unknown as ICompanyAddressRepository,
-    pricingService,
+    pricing as unknown as LineItemPricingService,
     availability as unknown as LineItemAvailabilityService,
   );
   return { useCase, orderRepository, cartRepository, pricing, availability };
@@ -193,9 +198,10 @@ describe("CheckoutOrderUseCase", () => {
     const order = await useCase.execute(COMPANY, ACTOR, dto(), NOW);
 
     // 2 × 50 + 1 × 12,5 = 112,5 → IVA 18, envío 5 (< 150), total 135,5
-    expect(pricing.priceLineItem).toHaveBeenCalledWith(
+    expect(pricing.priceLinesSettled).toHaveBeenCalledWith([
       expect.objectContaining({ productId: "p-1", quantity: 2 }),
-    );
+      expect.objectContaining({ productId: "p-2", quantity: 1 }),
+    ]);
     expect(order.subtotal).toBe(112.5);
     expect(order.discount).toBe(0);
     expect(order.tax).toBe(18);
@@ -335,12 +341,10 @@ describe("CheckoutOrderUseCase", () => {
   });
 
   it("una línea que ya no se puede cotizar (404 del pricing) también se lista", async () => {
-    const { useCase, pricing } = setup({
+    const { useCase } = setup({
       items: [cartItem("ci-1", "p-1", 1, "Café")],
+      priceErrors: { "p-1": new NotFoundException("Product not found") },
     });
-    pricing.priceLineItem.mockRejectedValueOnce(
-      new NotFoundException("Product not found"),
-    );
     const error = (await useCase
       .execute(COMPANY, ACTOR, dto(), NOW)
       .catch((e: unknown) => e)) as BadRequestException;
@@ -349,6 +353,53 @@ describe("CheckoutOrderUseCase", () => {
         { cartItemId: "ci-1", reason: "Ya no existe en el catálogo" },
       ],
     });
+  });
+
+  it("otro 4xx del pricing → CONFIGURATION; la regla de disponibilidad manda sobre el pricing", async () => {
+    const { useCase } = setup({
+      unavailable: ["p-2"],
+      priceErrors: {
+        "p-1": new BadRequestException("Modifier m-1 is not available"),
+        "p-2": new NotFoundException("Product not found"),
+      },
+    });
+    const error = (await useCase
+      .execute(COMPANY, ACTOR, dto(), NOW)
+      .catch((e: unknown) => e)) as BadRequestException;
+    expect(error.getResponse()).toMatchObject({
+      code: "CART_ITEMS_UNAVAILABLE",
+      unavailableItems: [
+        {
+          cartItemId: "ci-1",
+          reason: "Ya no está disponible con el tamaño o los extras elegidos",
+        },
+        { cartItemId: "ci-2", reason: "Ya no está disponible" },
+      ],
+    });
+  });
+
+  it("un error del pricing que no es HTTP (BD) se propaga tal cual", async () => {
+    const { useCase, orderRepository } = setup({
+      priceErrors: { "p-2": new Error("BD caída") },
+    });
+    await expect(useCase.execute(COMPANY, ACTOR, dto(), NOW)).rejects.toThrow(
+      "BD caída",
+    );
+    expect(orderRepository.createFromCart).not.toHaveBeenCalled();
+  });
+
+  it("cotiza una sola vez: un lote de disponibilidad y otro de precio, y guarda ese precio", async () => {
+    const { useCase, pricing, availability, orderRepository } = setup();
+
+    await useCase.execute(COMPANY, ACTOR, dto({ expectedTotal: 135.5 }), NOW);
+
+    expect(availability.checkMany).toHaveBeenCalledTimes(1);
+    expect(pricing.priceLinesSettled).toHaveBeenCalledTimes(1);
+    const [saved] = orderRepository.createFromCart.mock.calls[0];
+    expect(saved.items?.map((i) => [i.unitPrice, i.subtotal])).toEqual([
+      [50, 100],
+      [12.5, 12.5],
+    ]);
   });
 
   describe("corte de entrega (hora de Caracas)", () => {
