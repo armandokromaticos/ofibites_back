@@ -2,6 +2,7 @@ import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import compression from "compression";
 import { AppModule } from "./app.module";
 import { ServerTimingInterceptor } from "./server-timing.interceptor";
 
@@ -13,6 +14,8 @@ async function bootstrap() {
   // la IP real del cliente. 0 en local; 1 detrás de un proxy/PaaS.
   const trustProxyHops = Number(process.env.TRUST_PROXY_HOPS ?? 0);
   app.set("trust proxy", Number.isFinite(trustProxyHops) ? trustProxyHops : 0);
+  // gzip de las respuestas (catálogo, listados): menos bytes entre regiones.
+  app.use(compression());
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalInterceptors(new ServerTimingInterceptor());
   app.setGlobalPrefix("api");
