@@ -13,6 +13,8 @@ import type { IProductModifierRepository } from "../../domain/repositories/produ
 import { PRODUCT_MODIFIER_REPOSITORY } from "../../domain/repositories/product-modifier.repository.interface";
 import type { IProductModifierGroupRepository } from "../../domain/repositories/product-modifier-group.repository.interface";
 import { PRODUCT_MODIFIER_GROUP_REPOSITORY } from "../../domain/repositories/product-modifier-group.repository.interface";
+import type { ProductModifierEntity } from "../../domain/entities/product-modifier.entity";
+import type { ProductModifierGroupEntity } from "../../domain/entities/product-modifier-group.entity";
 import type { IComboRepository } from "../../domain/repositories/combo.repository.interface";
 import {
   COMBO_FULL_INCLUDE,
@@ -123,33 +125,40 @@ export class LineItemAvailabilityService {
       };
     }
 
-    const product = await this.productRepository.findUnique({
-      where: { id: line.productId },
-      include: { sizes: { where: { isActive: true } } },
-    });
-    const size = line.productSizeId
-      ? await this.productSizeRepository.findUnique({
-          where: { id: line.productSizeId },
-        })
-      : null;
-
-    let modifiers: LineAvailabilitySnapshot["modifiers"] = [];
-    if (line.modifierIds.length > 0) {
-      const { data } = await this.productModifierRepository.findMany({
-        where: { id: { in: line.modifierIds } },
-      });
-      const groupIds = [...new Set(data.map((m) => m.groupId))];
-      const [{ data: groups }, sizePrices] = await Promise.all([
-        this.productModifierGroupRepository.findMany({
-          where: { id: { in: groupIds } },
+    const hasModifiers = line.modifierIds.length > 0;
+    // Todo en un viaje: los grupos se piden por "contienen alguno de los
+    // modificadores", que es el mismo conjunto que por sus groupId.
+    const [product, size, { data }, { data: groups }, sizePrices] =
+      await Promise.all([
+        this.productRepository.findUnique({
+          where: { id: line.productId },
+          include: { sizes: { where: { isActive: true } } },
         }),
         line.productSizeId
+          ? this.productSizeRepository.findUnique({
+              where: { id: line.productSizeId },
+            })
+          : null,
+        hasModifiers
+          ? this.productModifierRepository.findMany({
+              where: { id: { in: line.modifierIds } },
+            })
+          : { data: [] as ProductModifierEntity[] },
+        hasModifiers
+          ? this.productModifierGroupRepository.findMany({
+              where: { modifiers: { some: { id: { in: line.modifierIds } } } },
+            })
+          : { data: [] as ProductModifierGroupEntity[] },
+        hasModifiers && line.productSizeId
           ? this.productModifierRepository.findSizePricesBatch(
               line.modifierIds,
               line.productSizeId,
             )
-          : Promise.resolve(new Map<string, number>()),
+          : new Map<string, number>(),
       ]);
+
+    let modifiers: LineAvailabilitySnapshot["modifiers"] = [];
+    if (hasModifiers) {
       const groupProduct = new Map(groups.map((g) => [g.id, g.productId]));
       modifiers = data.map((m) => ({
         id: m.id,

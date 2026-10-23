@@ -15,6 +15,12 @@ import { PRODUCT_MODIFIER_GROUP_REPOSITORY } from "../../domain/repositories/pro
 import type { IComboRepository } from "../../domain/repositories/combo.repository.interface";
 import { COMBO_REPOSITORY } from "../../domain/repositories/combo.repository.interface";
 import type { CreateOrderItemParams } from "../../domain/entities/order.entity";
+import {
+  LINE_CONCURRENCY,
+  mapWithConcurrency,
+} from "../shared/map-with-concurrency.util";
+import type { ProductModifierEntity } from "../../domain/entities/product-modifier.entity";
+import type { ProductModifierGroupEntity } from "../../domain/entities/product-modifier-group.entity";
 
 export interface LineItemInput {
   productId: string;
@@ -62,9 +68,45 @@ export class LineItemPricingService {
       );
     }
 
-    const product = await this.productRepository.findUnique({
-      where: { id: input.productId },
-    });
+    const inputModifiers = input.modifiers ?? [];
+    const modifierIds = inputModifiers.map((modifier) => modifier.modifierId);
+    // Lecturas independientes en paralelo (un viaje a la BD en vez de hasta
+    // cinco); las validaciones de abajo conservan su orden y sus errores.
+    const [
+      product,
+      combo,
+      size,
+      sizePricesMap,
+      { data: modifierList },
+      { data: groupList },
+    ] = await Promise.all([
+      this.productRepository.findUnique({ where: { id: input.productId } }),
+      input.comboId
+        ? this.comboRepository.findUnique({ where: { id: input.comboId } })
+        : null,
+      !input.comboId && input.productSizeId
+        ? this.productSizeRepository.findUnique({
+            where: { id: input.productSizeId },
+          })
+        : null,
+      inputModifiers.length > 0 && input.productSizeId
+        ? this.productModifierRepository.findSizePricesBatch(
+            modifierIds,
+            input.productSizeId,
+          )
+        : new Map<string, number>(),
+      inputModifiers.length > 0
+        ? this.productModifierRepository.findMany({
+            where: { id: { in: modifierIds } },
+          })
+        : { data: [] as ProductModifierEntity[] },
+      // Los grupos de esos modificadores (mismo conjunto que por groupId).
+      inputModifiers.length > 0
+        ? this.productModifierGroupRepository.findMany({
+            where: { modifiers: { some: { id: { in: modifierIds } } } },
+          })
+        : { data: [] as ProductModifierGroupEntity[] },
+    ]);
     if (!product) {
       throw new NotFoundException(
         `Product with id ${input.productId} not found`,
@@ -74,17 +116,11 @@ export class LineItemPricingService {
     let unitPrice: number;
 
     if (input.comboId) {
-      const combo = await this.comboRepository.findUnique({
-        where: { id: input.comboId },
-      });
       if (!combo) {
         throw new NotFoundException(`Combo with id ${input.comboId} not found`);
       }
       unitPrice = combo.price;
     } else if (input.productSizeId) {
-      const size = await this.productSizeRepository.findUnique({
-        where: { id: input.productSizeId },
-      });
       if (!size) {
         throw new NotFoundException(
           `ProductSize with id ${input.productSizeId} not found`,
@@ -103,32 +139,11 @@ export class LineItemPricingService {
     const modifiers: PricedModifier[] = [];
     let modifierTotal = 0;
 
-    const inputModifiers = input.modifiers ?? [];
     if (inputModifiers.length > 0) {
-      const modifierIds = inputModifiers.map((modifier) => modifier.modifierId);
-      const sizePricesMap = input.productSizeId
-        ? await this.productModifierRepository.findSizePricesBatch(
-            modifierIds,
-            input.productSizeId,
-          )
-        : new Map<string, number>();
-
       // Batch para evitar N+1: un findMany de modifiers y otro de sus groups.
-      const { data: modifierList } =
-        await this.productModifierRepository.findMany({
-          where: { id: { in: modifierIds } },
-        });
       const modifiersById = new Map(
         modifierList.map((modifier) => [modifier.id, modifier] as const),
       );
-
-      const groupIds = [
-        ...new Set(modifierList.map((modifier) => modifier.groupId)),
-      ];
-      const { data: groupList } =
-        await this.productModifierGroupRepository.findMany({
-          where: { id: { in: groupIds } },
-        });
       const groupsById = new Map(
         groupList.map((group) => [group.id, group] as const),
       );
@@ -176,8 +191,8 @@ export class LineItemPricingService {
   async priceOrderLines(
     inputs: LineItemInput[],
   ): Promise<CreateOrderItemParams[]> {
-    const priced = await Promise.all(
-      inputs.map((input) => this.priceLineItem(input)),
+    const priced = await mapWithConcurrency(inputs, LINE_CONCURRENCY, (input) =>
+      this.priceLineItem(input),
     );
     return inputs.map((input, index) => ({
       productId: input.productId,
