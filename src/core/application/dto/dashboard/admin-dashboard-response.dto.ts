@@ -1,16 +1,8 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { OrdersPerDayPointDto } from "./client-dashboard-response.dto";
+import { RankedProductDto } from "./ranked-product.dto";
 
-export class RankedProductDto {
-  @ApiProperty()
-  productId: string;
-
-  @ApiProperty()
-  name: string;
-
-  @ApiProperty()
-  quantity: number;
-}
+export { RankedProductDto };
 
 export class RankedComboDto {
   @ApiProperty()

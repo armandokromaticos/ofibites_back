@@ -6,6 +6,10 @@ import { DashboardRepository } from "../../core/infrastructure/repositories/dash
 import { OrderVisibilityResolver } from "../../core/application/services/order-visibility.resolver";
 import { GetClientDashboardUseCase } from "../../core/application/use-cases/dashboard/get-client-dashboard.use-case";
 import { GetAdminDashboardUseCase } from "../../core/application/use-cases/dashboard/get-admin-dashboard.use-case";
+import { GetClientBranchBreakdownUseCase } from "../../core/application/use-cases/dashboard/get-client-branch-breakdown.use-case";
+import { GetClientDepartmentBreakdownUseCase } from "../../core/application/use-cases/dashboard/get-client-department-breakdown.use-case";
+import { GetClientUserBreakdownUseCase } from "../../core/application/use-cases/dashboard/get-client-user-breakdown.use-case";
+import { ExportClientDashboardUseCase } from "../../core/application/use-cases/dashboard/export-client-dashboard.use-case";
 
 @Module({
   imports: [AuthModule],
@@ -15,6 +19,10 @@ import { GetAdminDashboardUseCase } from "../../core/application/use-cases/dashb
     OrderVisibilityResolver,
     GetClientDashboardUseCase,
     GetAdminDashboardUseCase,
+    GetClientBranchBreakdownUseCase,
+    GetClientDepartmentBreakdownUseCase,
+    GetClientUserBreakdownUseCase,
+    ExportClientDashboardUseCase,
   ],
 })
 export class DashboardModule {}

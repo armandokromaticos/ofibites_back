@@ -3,7 +3,7 @@ import type { IDashboardRepository } from "../../../domain/repositories/dashboar
 import { DASHBOARD_REPOSITORY } from "../../../domain/repositories/dashboard.repository.interface";
 import { Role } from "../../../domain/enums/role.enum";
 import { OrderVisibilityResolver } from "../../services/order-visibility.resolver";
-import { caracasMonthRange } from "../../shared/caracas-time.util";
+import { resolveDashboardMonthRange } from "../../shared/dashboard-month.util";
 import { ClientDashboardResponseDto } from "../../dto/dashboard/client-dashboard-response.dto";
 
 @Injectable()
@@ -18,13 +18,14 @@ export class GetClientDashboardUseCase {
     userId: string,
     userRole: Role,
     companyIdFilter?: string,
+    month?: string,
   ): Promise<ClientDashboardResponseDto> {
     const visibility = await this.visibilityResolver.resolve(
       userId,
       userRole,
       companyIdFilter,
     );
-    const range = caracasMonthRange();
+    const range = resolveDashboardMonthRange(month);
     return this.dashboardRepository.getClientDashboard(visibility, range);
   }
 }
