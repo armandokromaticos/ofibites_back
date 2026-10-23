@@ -41,8 +41,9 @@ export interface IProductModifierRepository {
     modifierId: string,
     productSizeId: string,
   ): Promise<number | null>;
+  /** Precios por tamaño de esos modificadores en esos tamaños: tamaño → modificador → precio. */
   findSizePricesBatch(
     modifierIds: string[],
-    productSizeId: string,
-  ): Promise<Map<string, number>>;
+    productSizeIds: string[],
+  ): Promise<Map<string, Map<string, number>>>;
 }

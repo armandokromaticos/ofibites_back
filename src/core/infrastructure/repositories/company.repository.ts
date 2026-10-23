@@ -3,10 +3,14 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../database/prisma/prisma.service";
 import { ICompanyRepository } from "../../domain/repositories/company.repository.interface";
 import { CompanyEntity } from "../../domain/entities/company.entity";
+import { AuthUserCacheService } from "../cache/auth-user-cache.service";
 
 @Injectable()
 export class CompanyRepository implements ICompanyRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly authUserCache: AuthUserCacheService,
+  ) {}
 
   async create(entity: CompanyEntity): Promise<CompanyEntity> {
     const company = await this.prisma.company.create({
@@ -44,6 +48,8 @@ export class CompanyRepository implements ICompanyRepository {
 
   async delete(id: string): Promise<void> {
     await this.prisma.company.delete({ where: { id } });
+    // Borra en cascada sus membresías.
+    this.authUserCache.invalidarMembresias();
   }
 
   async exists(args: Prisma.CompanyCountArgs): Promise<boolean> {

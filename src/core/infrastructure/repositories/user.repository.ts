@@ -53,6 +53,8 @@ export class UserRepository implements IUserRepository {
   async delete(id: string): Promise<void> {
     const deleted = await this.prisma.user.delete({ where: { id } });
     this.authUserCache.invalidar(deleted.authId);
+    // Borra en cascada sus membresías.
+    this.authUserCache.invalidarMembresias();
   }
 
   async exists(args: Prisma.UserCountArgs): Promise<boolean> {

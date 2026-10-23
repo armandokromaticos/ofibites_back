@@ -7,6 +7,7 @@ import {
 } from "../../domain/repositories/company-member.repository.interface";
 import { CompanyMemberEntity } from "../../domain/entities/company-member.entity";
 import { CompanyRole } from "../../domain/enums/company-role.enum";
+import { AuthUserCacheService } from "../cache/auth-user-cache.service";
 
 const MEMBERSHIP_REFS_INCLUDE = {
   company: { select: { id: true, legalName: true, isActive: true } },
@@ -20,7 +21,10 @@ type MemberWithRefs = Prisma.CompanyMemberGetPayload<{
 
 @Injectable()
 export class CompanyMemberRepository implements ICompanyMemberRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly authUserCache: AuthUserCacheService,
+  ) {}
 
   private toMembershipDetails(row: MemberWithRefs): CompanyMembershipDetails {
     return {
@@ -43,6 +47,9 @@ export class CompanyMemberRepository implements ICompanyMemberRepository {
     const created = await this.prisma.companyMember.create({
       data: entity.toPrismaCreate(),
     });
+    // Ninguna escritura de miembros sale de este repositorio: aquí se
+    // invalida la membresía que cachean los guards de empresa.
+    this.authUserCache.invalidarMembresia(created.userId, created.companyId);
     return CompanyMemberEntity.fromPrisma(created);
   }
 
@@ -81,11 +88,13 @@ export class CompanyMemberRepository implements ICompanyMemberRepository {
     args: Prisma.CompanyMemberUpdateArgs,
   ): Promise<CompanyMemberEntity> {
     const updated = await this.prisma.companyMember.update(args);
+    this.authUserCache.invalidarMembresia(updated.userId, updated.companyId);
     return CompanyMemberEntity.fromPrisma(updated);
   }
 
   async delete(id: string): Promise<void> {
-    await this.prisma.companyMember.delete({ where: { id } });
+    const deleted = await this.prisma.companyMember.delete({ where: { id } });
+    this.authUserCache.invalidarMembresia(deleted.userId, deleted.companyId);
   }
 
   async exists(args: Prisma.CompanyMemberCountArgs): Promise<boolean> {
@@ -156,6 +165,9 @@ export class CompanyMemberRepository implements ICompanyMemberRepository {
     companyId: string,
     debounceMs: number,
   ): Promise<void> {
+    // Sin invalidar la caché de membresías: solo toca lastSeenAt (ni rol ni
+    // isActive) y corre en cada request con X-Company-Id; vaciarla aquí la
+    // dejaría sin efecto.
     const threshold = new Date(Date.now() - debounceMs);
     await this.prisma.companyMember.updateMany({
       where: {

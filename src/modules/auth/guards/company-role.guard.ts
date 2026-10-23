@@ -87,11 +87,15 @@ export class CompanyRoleGuard implements CanActivate {
       };
     }
 
-    const member =
-      await this.companyMemberRepository.findActiveByUserAndCompany(
-        userId,
-        companyId,
-      );
+    const member = await this.authUserCache.obtenerMembresia(
+      userId,
+      companyId,
+      () =>
+        this.companyMemberRepository.findActiveByUserAndCompany(
+          userId,
+          companyId,
+        ),
+    );
 
     if (!member) {
       throw new ForbiddenException("No perteneces a esta empresa");

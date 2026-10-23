@@ -26,22 +26,28 @@ interface Fixtures {
 
 function setup(f: Fixtures) {
   const productRepository = {
-    findUnique: jest.fn(() =>
-      Promise.resolve(
-        f.product
-          ? {
-              isActive: f.product.isActive,
-              sizes: Array.from({ length: f.product.activeSizes ?? 0 }, () => ({
-                isActive: true,
-              })),
-            }
-          : null,
-      ),
+    findMany: jest.fn(() =>
+      Promise.resolve({
+        data: f.product
+          ? [
+              {
+                id: "p-1",
+                isActive: f.product.isActive,
+                sizes: Array.from(
+                  { length: f.product.activeSizes ?? 0 },
+                  () => ({ isActive: true }),
+                ),
+              },
+            ]
+          : [],
+      }),
     ),
   };
   const productSizeRepository = {
-    findUnique: jest.fn(() =>
-      Promise.resolve(f.size ? { productId: "p-1", ...f.size } : null),
+    findMany: jest.fn(() =>
+      Promise.resolve({
+        data: f.size ? [{ id: "s-1", productId: "p-1", ...f.size }] : [],
+      }),
     ),
   };
   const productModifierRepository = {
@@ -56,7 +62,12 @@ function setup(f: Fixtures) {
     ),
     findSizePricesBatch: jest.fn(() =>
       Promise.resolve(
-        new Map((f.pricedModifierIds ?? []).map((id) => [id, 1] as const)),
+        new Map([
+          [
+            "s-1",
+            new Map((f.pricedModifierIds ?? []).map((id) => [id, 1] as const)),
+          ],
+        ]),
       ),
     ),
   };
@@ -72,15 +83,18 @@ function setup(f: Fixtures) {
     ),
   };
   const comboRepository = {
-    findUnique: jest.fn(() =>
-      Promise.resolve(
-        f.combo
-          ? {
-              isActive: f.combo.isActive,
-              items: f.combo.productIds.map((productId) => ({ productId })),
-            }
-          : null,
-      ),
+    findMany: jest.fn(() =>
+      Promise.resolve({
+        data: f.combo
+          ? [
+              {
+                id: "c-1",
+                isActive: f.combo.isActive,
+                items: f.combo.productIds.map((productId) => ({ productId })),
+              },
+            ]
+          : [],
+      }),
     ),
   };
   const service = new LineItemAvailabilityService(
@@ -90,7 +104,14 @@ function setup(f: Fixtures) {
     productModifierGroupRepository as unknown as IProductModifierGroupRepository,
     comboRepository as unknown as IComboRepository,
   );
-  return { service, productRepository, comboRepository };
+  return {
+    service,
+    productRepository,
+    productSizeRepository,
+    productModifierRepository,
+    productModifierGroupRepository,
+    comboRepository,
+  };
 }
 
 const line = (overrides: Partial<LineItemInput> = {}): LineItemInput => ({
@@ -159,7 +180,7 @@ describe("LineItemAvailabilityService", () => {
       await expect(
         service.assertAvailable(line({ comboId: "c-1" })),
       ).resolves.toBeUndefined();
-      expect(productRepository.findUnique).not.toHaveBeenCalled();
+      expect(productRepository.findMany).not.toHaveBeenCalled();
     });
 
     it("acepta una línea con todo activo", async () => {
@@ -205,7 +226,7 @@ describe("LineItemAvailabilityService", () => {
         ),
         "Los combos no admiten modificadores",
       );
-      expect(comboRepository.findUnique).not.toHaveBeenCalled();
+      expect(comboRepository.findMany).not.toHaveBeenCalled();
     });
 
     it("acepta modifiers vacío en un combo", async () => {
@@ -227,7 +248,7 @@ describe("LineItemAvailabilityService", () => {
         service.assertAvailable(line()),
         "El producto p-1 tiene tamaños: indica productSizeId",
       );
-      expect(productRepository.findUnique).toHaveBeenCalledWith(
+      expect(productRepository.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           include: { sizes: { where: { isActive: true } } },
         }),
@@ -310,5 +331,64 @@ describe("LineItemAvailabilityService", () => {
     await expect(
       service.assertAvailable(line({ comboId: "c-x" })),
     ).resolves.toBeUndefined();
+  });
+  describe("en lote", () => {
+    const fixtures: Fixtures = {
+      product: { isActive: true },
+      size: { isActive: false },
+      combo: { isActive: false, productIds: ["p-1"] },
+      modifiers: [{ id: "m-1", isActive: true }],
+    };
+    const lines = [
+      line({ modifiers: [{ modifierId: "m-1" }] }),
+      line({ comboId: "c-1" }),
+      line({ productSizeId: "s-1" }),
+      line({ productId: "p-x" }),
+    ];
+
+    it("checkMany da el mismo resultado que check, en el orden de entrada", async () => {
+      const { service } = setup(fixtures);
+      const batch = await service.checkMany(lines);
+      expect(batch.map((found) => found?.code ?? null)).toEqual([
+        null,
+        "UNAVAILABLE",
+        "CONFIGURATION",
+        "NOT_FOUND",
+      ]);
+      for (const [index, input] of lines.entries()) {
+        await expect(setup(fixtures).service.check(input)).resolves.toEqual(
+          batch[index],
+        );
+      }
+    });
+
+    it("hace una consulta por tabla sea cual sea N", async () => {
+      const mocks = setup(fixtures);
+      await mocks.service.checkMany([...lines, ...lines, ...lines]);
+      for (const fn of [
+        mocks.productRepository.findMany,
+        mocks.productSizeRepository.findMany,
+        mocks.productModifierRepository.findMany,
+        mocks.productModifierGroupRepository.findMany,
+        mocks.comboRepository.findMany,
+      ]) {
+        expect(fn).toHaveBeenCalledTimes(1);
+      }
+      expect(mocks.productRepository.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: { in: ["p-1", "p-x"] } } }),
+      );
+    });
+
+    it("assertAvailableMany lanza el 400 de la primera línea que falla", async () => {
+      const { service } = setup(fixtures);
+      await expect400(
+        service.assertAvailableMany(lines),
+        "El combo c-1 no está disponible",
+      );
+      await expect400(
+        service.assertAvailableMany([lines[3], lines[2], lines[1]]),
+        "El tamaño s-1 no está disponible",
+      );
+    });
   });
 });

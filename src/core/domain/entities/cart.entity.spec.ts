@@ -241,8 +241,10 @@ describe("CartViewService · ítems enriquecidos", () => {
       getOrCreateViewByCompanyId: jest.fn(() => Promise.resolve(cart)),
     };
     const pricing = {
-      priceLineItem: jest.fn(() =>
-        Promise.resolve({ unitPrice: 10, subtotal: 20, modifiers: [] }),
+      priceLines: jest.fn((inputs: unknown[]) =>
+        Promise.resolve(
+          inputs.map(() => ({ unitPrice: 10, subtotal: 20, modifiers: [] })),
+        ),
       ),
     };
     return new CartViewService(
