@@ -28,15 +28,16 @@ model User {
   /// URL pública de la foto de perfil en el bucket `avatars` (T-30c).
   avatarUrl         String?   @map("avatar_url")
 
-  orders                Order[]                      @relation("OrderUser")
-  createdOrders         Order[]                      @relation("OrderCreatedBy")
-  couponUsages          CouponUsage[]
-  memberships           CompanyMember[]
-  reviewedRegistrations CompanyRegistrationRequest[] @relation("ReviewedRegistrations")
-  cartItemsAdded        CartItem[]                   @relation("CartItemAddedBy")
-  supportTickets        SupportTicket[]              @relation("SupportTicketsCreated")
-  supportMessages       SupportMessage[]             @relation("SupportMessagesAuthored")
-  notifications         Notification[]
+  orders                  Order[]                      @relation("OrderUser")
+  createdOrders           Order[]                      @relation("OrderCreatedBy")
+  couponUsages            CouponUsage[]
+  memberships             CompanyMember[]
+  reviewedRegistrations   CompanyRegistrationRequest[] @relation("ReviewedRegistrations")
+  cartItemsAdded          CartItem[]                   @relation("CartItemAddedBy")
+  supportTickets          SupportTicket[]              @relation("SupportTicketsCreated")
+  supportMessages         SupportMessage[]             @relation("SupportMessagesAuthored")
+  notifications           Notification[]
+  notificationPreferences NotificationPreference[]
 
   @@map("users")
 }
@@ -881,4 +882,42 @@ model Notification {
   @@index([orderId])
   @@index([companyId])
   @@map("notifications")
+}
+
+// ============================================
+// NOTIFICATION PREFERENCES (T-30e)
+// ============================================
+
+// Catálogo nuevo y separado de NotificationType/Notification (no son las
+// notificaciones in-app reales de pedidos, que no cambian). Solo persistencia
+// de la preferencia: ningún correo se envía de verdad desde este repo.
+enum NotificationPreferenceType {
+  // Grupo "pedidos y facturas": platformEnabled siempre true, no editable.
+  ORDER_CONFIRMED_OR_REJECTED
+  ORDER_STATUS_CHANGED
+  INVOICE_GENERATED
+  INVOICE_DUE_SOON_OR_OVERDUE
+  PAYMENT_STATUS_CHANGED
+  // Grupo "novedades": los dos canales editables.
+  NEW_ASSORTMENT
+  QUICK_COFFEE_BREAK_OPTIONS
+  SUGGESTION_FOR_YOU
+  TERMS_CHANGES
+}
+
+// Una fila por (userId, type); sin fila guardada, el default es (true, true).
+model NotificationPreference {
+  id              String                     @id @default(dbgenerated("(gen_random_uuid())::text"))
+  userId          String                     @map("user_id")
+  type            NotificationPreferenceType
+  emailEnabled    Boolean                    @default(true) @map("email_enabled")
+  platformEnabled Boolean                    @default(true) @map("platform_enabled")
+  createdAt       DateTime                   @default(now()) @map("created_at")
+  updatedAt       DateTime                   @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+  @@index([userId])
+  @@map("notification_preferences")
 }

@@ -31,6 +31,10 @@ import { ChangePasswordUseCase } from "../../../core/application/use-cases/auth/
 import { UploadAvatarUseCase } from "../../../core/application/use-cases/auth/upload-avatar.use-case";
 import { DeleteAvatarUseCase } from "../../../core/application/use-cases/auth/delete-avatar.use-case";
 import { AVATAR_MAX_BYTES } from "../../../core/application/use-cases/auth/avatar-storage";
+import { GetNotificationPreferencesUseCase } from "../../../core/application/use-cases/auth/get-notification-preferences.use-case";
+import { UpdateNotificationPreferencesUseCase } from "../../../core/application/use-cases/auth/update-notification-preferences.use-case";
+import { UpdateNotificationPreferencesDto } from "../../../core/application/dto/notification-preferences/update-notification-preferences.dto";
+import { NotificationPreferencesListResponseDto } from "../../../core/application/dto/notification-preferences/notification-preference-response.dto";
 import { parseOptionalCompanyIdHeader } from "../../../core/application/shared/company-id-header.util";
 import { RolesGuard } from "../guards/roles.guard";
 import { UserThrottlerGuard } from "../guards/user-throttler.guard";
@@ -76,6 +80,8 @@ export class AuthController {
     private readonly changePasswordUseCase: ChangePasswordUseCase,
     private readonly uploadAvatarUseCase: UploadAvatarUseCase,
     private readonly deleteAvatarUseCase: DeleteAvatarUseCase,
+    private readonly getNotificationPreferencesUseCase: GetNotificationPreferencesUseCase,
+    private readonly updateNotificationPreferencesUseCase: UpdateNotificationPreferencesUseCase,
   ) {}
 
   @Post("login")
@@ -287,5 +293,51 @@ export class AuthController {
       token,
       dto,
     );
+  }
+
+  @Get("me/notification-preferences")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(...ALL_ROLES)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "Obtener mis preferencias de notificaciones",
+    description:
+      "Devuelve los 9 tipos del catálogo (Mi perfil > Notificaciones) con sus flags. Sin fila guardada para un tipo se sintetiza el default (true, true). En los 5 tipos de pedidos y facturas, platformEnabled siempre es true. Solo persistencia: ningún correo se envía de verdad.",
+  })
+  @ApiOkResponse({ type: NotificationPreferencesListResponseDto })
+  async getNotificationPreferences(
+    @CurrentUser() user: { id: string },
+  ): Promise<NotificationPreferencesListResponseDto> {
+    const preferences = await this.getNotificationPreferencesUseCase.execute(
+      user.id,
+    );
+    return { preferences };
+  }
+
+  @Patch("me/notification-preferences")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(...ALL_ROLES)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "Actualizar mis preferencias de notificaciones",
+    description:
+      "preferences: lista parcial [{ type, emailEnabled?, platformEnabled? }] con solo lo que cambió; no hace falta mandar los 9. Upsert por (usuario, type). Devuelve la lista completa de 9 ya actualizada, misma forma que el GET.",
+  })
+  @ApiBody({ type: UpdateNotificationPreferencesDto })
+  @ApiOkResponse({ type: NotificationPreferencesListResponseDto })
+  @ApiResponse({
+    status: 400,
+    description:
+      "type no es uno de los 9 códigos válidos, o el body intenta platformEnabled: false en un tipo de pedidos y facturas.",
+  })
+  async updateNotificationPreferences(
+    @Body() dto: UpdateNotificationPreferencesDto,
+    @CurrentUser() user: { id: string },
+  ): Promise<NotificationPreferencesListResponseDto> {
+    const preferences = await this.updateNotificationPreferencesUseCase.execute(
+      user.id,
+      dto.preferences,
+    );
+    return { preferences };
   }
 }
