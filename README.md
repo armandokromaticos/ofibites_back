@@ -26,6 +26,9 @@ DATABASE_URL=postgresql://...      # connection pooler de Supabase
 DIRECT_URL=postgresql://...        # conexión directa (para migraciones)
 SUPABASE_URL=https://....supabase.co
 SUPABASE_SERVICE_ROLE_KEY=...
+# Secreto JWT legacy (HS256) de Supabase (Settings > API > JWT Secret). Con él, JwtAuthGuard verifica los tokens HS256
+# en local; sin él los valida con auth.getUser() (un viaje a Supabase por request). Los tokens RS256/ES256 usan el JWKS.
+SUPABASE_JWT_SECRET=...
 # URL del front a la que lleva el correo de "olvidé mi contraseña" (p. ej. http://localhost:3001/reset-password).
 # Debe estar en la allow-list de Redirect URLs de Supabase Auth; si falta, Supabase usa su Site URL.
 SUPABASE_RECOVERY_REDIRECT_URL=http://localhost:3001/reset-password

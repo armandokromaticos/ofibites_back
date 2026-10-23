@@ -11,6 +11,7 @@ import { Request } from "express";
 import { Role } from "../../../core/domain/enums/role.enum";
 import type { IUserRepository } from "../../../core/domain/repositories/user.repository.interface";
 import { USER_REPOSITORY } from "../../../core/domain/repositories/user.repository.interface";
+import { AuthUserCacheService } from "../../../core/infrastructure/cache/auth-user-cache.service";
 import { ROLES_KEY } from "../decorators/roles.decorator";
 
 @Injectable()
@@ -19,6 +20,7 @@ export class RolesGuard implements CanActivate {
     private readonly reflector: Reflector,
     @Inject(USER_REPOSITORY)
     private readonly userRepository: IUserRepository,
+    private readonly authUserCache: AuthUserCacheService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -38,9 +40,9 @@ export class RolesGuard implements CanActivate {
       throw new UnauthorizedException("Usuario no autenticado");
     }
 
-    const user = await this.userRepository.findUnique({
-      where: { authId: authUser.authId },
-    });
+    const user = await this.authUserCache.obtener(authUser.authId, () =>
+      this.userRepository.findUnique({ where: { authId: authUser.authId } }),
+    );
 
     if (!user) {
       throw new ForbiddenException("Usuario no encontrado");

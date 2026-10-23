@@ -3,10 +3,14 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../database/prisma/prisma.service";
 import { IUserRepository } from "../../domain/repositories/user.repository.interface";
 import { UserEntity } from "../../domain/entities/user.entity";
+import { AuthUserCacheService } from "../cache/auth-user-cache.service";
 
 @Injectable()
 export class UserRepository implements IUserRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly authUserCache: AuthUserCacheService,
+  ) {}
 
   async create(entity: UserEntity): Promise<UserEntity> {
     const created = await this.prisma.user.create({
@@ -41,11 +45,14 @@ export class UserRepository implements IUserRepository {
 
   async update(args: Prisma.UserUpdateArgs): Promise<UserEntity> {
     const updated = await this.prisma.user.update(args);
+    // Rol o estado pueden haber cambiado: que los guards relean de la BD.
+    this.authUserCache.invalidar(updated.authId);
     return UserEntity.fromPrisma(updated);
   }
 
   async delete(id: string): Promise<void> {
-    await this.prisma.user.delete({ where: { id } });
+    const deleted = await this.prisma.user.delete({ where: { id } });
+    this.authUserCache.invalidar(deleted.authId);
   }
 
   async exists(args: Prisma.UserCountArgs): Promise<boolean> {

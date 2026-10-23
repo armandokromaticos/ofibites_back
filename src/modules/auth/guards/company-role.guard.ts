@@ -14,6 +14,7 @@ import type { ICompanyMemberRepository } from "../../../core/domain/repositories
 import { COMPANY_MEMBER_REPOSITORY } from "../../../core/domain/repositories/company-member.repository.interface";
 import type { IUserRepository } from "../../../core/domain/repositories/user.repository.interface";
 import { USER_REPOSITORY } from "../../../core/domain/repositories/user.repository.interface";
+import { AuthUserCacheService } from "../../../core/infrastructure/cache/auth-user-cache.service";
 import { COMPANY_ROLES_KEY } from "../decorators/company-roles.decorator";
 
 const COMPANY_ID_HEADER = "x-company-id";
@@ -34,6 +35,7 @@ export class CompanyRoleGuard implements CanActivate {
     private readonly userRepository: IUserRepository,
     @Inject(COMPANY_MEMBER_REPOSITORY)
     private readonly companyMemberRepository: ICompanyMemberRepository,
+    private readonly authUserCache: AuthUserCacheService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -66,9 +68,10 @@ export class CompanyRoleGuard implements CanActivate {
 
     let userId = authUser.id;
     if (!userId) {
-      const user = await this.userRepository.findUnique({
-        where: { authId: authUser.authId },
-      });
+      const authId = authUser.authId;
+      const user = await this.authUserCache.obtener(authId, () =>
+        this.userRepository.findUnique({ where: { authId } }),
+      );
       if (!user) {
         throw new ForbiddenException("Usuario no encontrado");
       }
