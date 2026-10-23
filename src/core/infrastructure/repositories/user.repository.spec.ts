@@ -9,13 +9,17 @@ describe("UserRepository (invalidación de la caché de guards)", () => {
     },
   } as unknown as PrismaService;
   const invalidar = jest.fn();
+  const invalidarMembresias = jest.fn();
   const repo = new UserRepository(prisma, {
     invalidar,
+    invalidarMembresias,
   } as unknown as AuthUserCacheService);
 
   it("al borrar un usuario invalida su entrada por authId", async () => {
     await repo.delete("user-1");
 
     expect(invalidar).toHaveBeenCalledWith("auth-1");
+    // Sus membresías se borran en cascada.
+    expect(invalidarMembresias).toHaveBeenCalledTimes(1);
   });
 });

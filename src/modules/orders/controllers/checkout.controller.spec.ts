@@ -63,6 +63,11 @@ describe("CheckoutController (HTTP)", () => {
           provide: AuthUserCacheService,
           useValue: {
             obtener: (_authId: string, cargar: () => unknown) => cargar(),
+            obtenerMembresia: (
+              _userId: string,
+              _companyId: string,
+              cargar: () => unknown,
+            ) => cargar(),
           },
         },
       ],
