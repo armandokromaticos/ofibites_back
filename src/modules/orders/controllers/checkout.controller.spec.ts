@@ -9,6 +9,7 @@ import { PlatformOrCompanyRoleGuard } from "../../auth/guards/platform-or-compan
 import { CheckoutOrderUseCase } from "../../../core/application/use-cases/orders/checkout-order.use-case";
 import { USER_REPOSITORY } from "../../../core/domain/repositories/user.repository.interface";
 import { COMPANY_MEMBER_REPOSITORY } from "../../../core/domain/repositories/company-member.repository.interface";
+import { AuthUserCacheService } from "../../../core/infrastructure/cache/auth-user-cache.service";
 import { ROLES_KEY } from "../../auth/decorators/roles.decorator";
 import { OrdersController } from "./orders.controller";
 import { Role } from "../../../core/domain/enums/role.enum";
@@ -55,6 +56,13 @@ describe("CheckoutController (HTTP)", () => {
           provide: COMPANY_MEMBER_REPOSITORY,
           useValue: {
             findActiveByUserAndCompany: jest.fn(() => Promise.resolve(member)),
+          },
+        },
+        // Sin caché real: cada test cambia `dbUser` con el mismo authId.
+        {
+          provide: AuthUserCacheService,
+          useValue: {
+            obtener: (_authId: string, cargar: () => unknown) => cargar(),
           },
         },
       ],
