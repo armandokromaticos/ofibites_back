@@ -1,4 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
+import { RankedProductDto } from "./ranked-product.dto";
 
 export class OrdersPerDayPointDto {
   @ApiProperty({
@@ -44,4 +45,31 @@ export class ClientDashboardResponseDto {
     description: "Top 5 pedidos del mes por monto total",
   })
   topOrders: TopOrderDto[];
+
+  @ApiProperty({
+    description:
+      "Comensales atendidos en el mes: suma de quantity * (servings ?? 1) de los ítems sin combo de pedidos en estados facturables (T-32a)",
+  })
+  dinersServed: number;
+
+  @ApiProperty({
+    type: Number,
+    description:
+      "Inversión del mes (suma de Order.total en estados facturables, igual criterio que la facturación del admin)",
+  })
+  monthInvestment: number;
+
+  @ApiProperty({
+    type: Number,
+    nullable: true,
+    description:
+      "Variación de monthInvestment vs. el mes anterior, en porcentaje. null si el mes anterior no tiene pedidos facturables con qué comparar",
+  })
+  monthInvestmentChangePercent: number | null;
+
+  @ApiProperty({
+    type: () => [RankedProductDto],
+    description: "Top 5 productos del mes por cantidad (ítems sin combo)",
+  })
+  topProducts: RankedProductDto[];
 }
