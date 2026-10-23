@@ -3,6 +3,7 @@ import { NestFactory } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
+import { ServerTimingInterceptor } from "./server-timing.interceptor";
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -13,6 +14,7 @@ async function bootstrap() {
   const trustProxyHops = Number(process.env.TRUST_PROXY_HOPS ?? 0);
   app.set("trust proxy", Number.isFinite(trustProxyHops) ? trustProxyHops : 0);
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.useGlobalInterceptors(new ServerTimingInterceptor());
   app.setGlobalPrefix("api");
   // CORS_ORIGIN admite varios orígenes separados por coma (dominio de
   // producción + previews de Vercel).

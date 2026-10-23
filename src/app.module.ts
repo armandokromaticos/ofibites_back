@@ -70,6 +70,8 @@ export class AppModule implements NestModule {
     consumer
       .apply((request: Request, response: Response, next: NextFunction) => {
         const start = Date.now();
+        // Lo lee ServerTimingInterceptor para que la cabecera incluya los guards.
+        request["inicioPeticion"] = start;
         response.on("finish", () => {
           this.logger.log(
             `${request.method} ${request.originalUrl} ${response.statusCode} - ${Date.now() - start}ms`,
