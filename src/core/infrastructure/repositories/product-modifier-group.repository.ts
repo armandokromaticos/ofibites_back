@@ -1,12 +1,16 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../database/prisma/prisma.service";
+import { CatalogCacheService } from "../catalog-cache/catalog-cache.service";
 import { IProductModifierGroupRepository } from "../../domain/repositories/product-modifier-group.repository.interface";
 import { ProductModifierGroupEntity } from "../../domain/entities/product-modifier-group.entity";
 
 @Injectable()
 export class ProductModifierGroupRepository implements IProductModifierGroupRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly catalogCache: CatalogCacheService,
+  ) {}
 
   async create(
     entity: ProductModifierGroupEntity,
@@ -14,6 +18,7 @@ export class ProductModifierGroupRepository implements IProductModifierGroupRepo
     const group = await this.prisma.productModifierGroup.create({
       data: entity.toPrismaCreate(),
     });
+    this.catalogCache.invalidar();
     return ProductModifierGroupEntity.fromPrisma(group);
   }
 
@@ -45,11 +50,13 @@ export class ProductModifierGroupRepository implements IProductModifierGroupRepo
     args: Prisma.ProductModifierGroupUpdateArgs,
   ): Promise<ProductModifierGroupEntity> {
     const group = await this.prisma.productModifierGroup.update(args);
+    this.catalogCache.invalidar();
     return ProductModifierGroupEntity.fromPrisma(group);
   }
 
   async delete(id: string): Promise<void> {
     await this.prisma.productModifierGroup.delete({ where: { id } });
+    this.catalogCache.invalidar();
   }
 
   async exists(args: Prisma.ProductModifierGroupCountArgs): Promise<boolean> {

@@ -1,17 +1,22 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../database/prisma/prisma.service";
+import { CatalogCacheService } from "../catalog-cache/catalog-cache.service";
 import { ITagRepository } from "../../domain/repositories/tag.repository.interface";
 import { TagEntity } from "../../domain/entities/tag.entity";
 
 @Injectable()
 export class TagRepository implements ITagRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly catalogCache: CatalogCacheService,
+  ) {}
 
   async create(entity: TagEntity): Promise<TagEntity> {
     const tag = await this.prisma.tag.create({
       data: entity.toPrismaCreate(),
     });
+    this.catalogCache.invalidar();
     return TagEntity.fromPrisma(tag);
   }
 
@@ -37,11 +42,13 @@ export class TagRepository implements ITagRepository {
 
   async update(args: Prisma.TagUpdateArgs): Promise<TagEntity> {
     const tag = await this.prisma.tag.update(args);
+    this.catalogCache.invalidar();
     return TagEntity.fromPrisma(tag);
   }
 
   async delete(id: string): Promise<void> {
     await this.prisma.tag.delete({ where: { id } });
+    this.catalogCache.invalidar();
   }
 
   async exists(args: Prisma.TagCountArgs): Promise<boolean> {

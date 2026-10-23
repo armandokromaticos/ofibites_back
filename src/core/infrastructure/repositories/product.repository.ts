@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../database/prisma/prisma.service";
+import { CatalogCacheService } from "../catalog-cache/catalog-cache.service";
 import {
   IProductRepository,
   PRODUCT_FULL_INCLUDE,
@@ -9,13 +10,17 @@ import { ProductEntity } from "../../domain/entities/product.entity";
 
 @Injectable()
 export class ProductRepository implements IProductRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly catalogCache: CatalogCacheService,
+  ) {}
 
   async create(entity: ProductEntity): Promise<ProductEntity> {
     const product = await this.prisma.product.create({
       data: entity.toPrismaCreate(),
       include: PRODUCT_FULL_INCLUDE,
     });
+    this.catalogCache.invalidar();
     return ProductEntity.fromPrisma(product);
   }
 
@@ -43,11 +48,13 @@ export class ProductRepository implements IProductRepository {
 
   async update(args: Prisma.ProductUpdateArgs): Promise<ProductEntity> {
     const product = await this.prisma.product.update(args);
+    this.catalogCache.invalidar();
     return ProductEntity.fromPrisma(product);
   }
 
   async delete(id: string): Promise<void> {
     await this.prisma.product.delete({ where: { id } });
+    this.catalogCache.invalidar();
   }
 
   async exists(args: Prisma.ProductCountArgs): Promise<boolean> {
@@ -63,6 +70,7 @@ export class ProductRepository implements IProductRepository {
       data: tagIds.map((tagId) => ({ productId, tagId })),
       skipDuplicates: true,
     });
+    this.catalogCache.invalidar();
     const product = await this.prisma.product.findUnique({
       where: { id: productId },
       include: PRODUCT_FULL_INCLUDE,
@@ -74,5 +82,6 @@ export class ProductRepository implements IProductRepository {
     await this.prisma.productTag.delete({
       where: { productId_tagId: { productId, tagId } },
     });
+    this.catalogCache.invalidar();
   }
 }

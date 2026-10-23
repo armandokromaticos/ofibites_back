@@ -11,6 +11,7 @@ import { ProductEntity } from "../../../domain/entities/product.entity";
 import { ComboEntity } from "../../../domain/entities/combo.entity";
 import { SectionEntity } from "../../../domain/entities/section.entity";
 import { Lang } from "../../../domain/enums/lang.enum";
+import { CatalogCacheService } from "../../../infrastructure/catalog-cache/catalog-cache.service";
 
 // 2026-10-15 12:00 en Caracas. Corte de "Nuevos": 2026-09-15 00:00 Caracas.
 const NOW = new Date("2026-10-15T16:00:00.000Z");
@@ -280,6 +281,7 @@ function setup(data: {
     sectionRepository as unknown as ISectionRepository,
     productRepository as unknown as IProductRepository,
     comboRepository as unknown as IComboRepository,
+    new CatalogCacheService(),
   );
   return { useCase, productRepository, comboRepository, sectionRepository };
 }
@@ -804,6 +806,34 @@ describe("GetCatalogItemUseCase", () => {
           where: { isActive: true, items: { some: { comboId: "c-actual" } } },
         }),
       );
+    });
+  });
+
+  describe("caché", () => {
+    it('sirve la ficha cacheada y la recarga si cambia el idioma o el día de "Nuevos"', async () => {
+      const { useCase, productRepository } = setup({
+        products: [product("p-actual")],
+      });
+      const loads = () => productRepository.findUnique.mock.calls.length;
+
+      await useCase.execute("product", "p-actual", Lang.ES, { now: NOW });
+      await useCase.execute("product", "p-actual", Lang.ES, { now: NOW });
+      expect(loads()).toBe(1);
+
+      await useCase.execute("product", "p-actual", Lang.EN, { now: NOW });
+      expect(loads()).toBe(2);
+
+      const nextDay = new Date(NOW.getTime() + 24 * 60 * 60 * 1000);
+      await useCase.execute("product", "p-actual", Lang.ES, { now: nextDay });
+      expect(loads()).toBe(3);
+    });
+
+    it("no cachea el 404", async () => {
+      const { useCase, productRepository } = setup({});
+
+      await expect(useCase.execute("product", "p-nada")).rejects.toThrow();
+      await expect(useCase.execute("product", "p-nada")).rejects.toThrow();
+      expect(productRepository.findUnique).toHaveBeenCalledTimes(2);
     });
   });
 });

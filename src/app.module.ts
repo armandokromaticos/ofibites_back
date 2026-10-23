@@ -5,6 +5,7 @@ import { AppService } from "./app.service";
 import { PrismaModule } from "./core/infrastructure/database/prisma/prisma.module";
 import { SupabaseModule } from "./core/infrastructure/supabase/supabase.module";
 import { AuthUserCacheModule } from "./core/infrastructure/cache/auth-user-cache.module";
+import { CatalogCacheModule } from "./core/infrastructure/catalog-cache/catalog-cache.module";
 import { UsersModule } from "./modules/users/users.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { ProductsModule } from "./modules/products/products.module";
@@ -35,6 +36,7 @@ import { NotificationsModule } from "./modules/notifications/notifications.modul
     PrismaModule,
     SupabaseModule,
     AuthUserCacheModule,
+    CatalogCacheModule,
     UsersModule,
     AuthModule,
     ProductsModule,

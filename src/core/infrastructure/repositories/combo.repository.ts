@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../database/prisma/prisma.service";
+import { CatalogCacheService } from "../catalog-cache/catalog-cache.service";
 import {
   COMBO_FULL_INCLUDE,
   IComboRepository,
@@ -9,13 +10,17 @@ import { ComboEntity } from "../../domain/entities/combo.entity";
 
 @Injectable()
 export class ComboRepository implements IComboRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly catalogCache: CatalogCacheService,
+  ) {}
 
   async create(entity: ComboEntity): Promise<ComboEntity> {
     const combo = await this.prisma.combo.create({
       data: entity.toPrismaCreate(),
       include: COMBO_FULL_INCLUDE,
     });
+    this.catalogCache.invalidar();
     return ComboEntity.fromPrisma(combo);
   }
 
@@ -43,11 +48,13 @@ export class ComboRepository implements IComboRepository {
 
   async update(args: Prisma.ComboUpdateArgs): Promise<ComboEntity> {
     const combo = await this.prisma.combo.update(args);
+    this.catalogCache.invalidar();
     return ComboEntity.fromPrisma(combo);
   }
 
   async delete(id: string): Promise<void> {
     await this.prisma.combo.delete({ where: { id } });
+    this.catalogCache.invalidar();
   }
 
   async exists(args: Prisma.ComboCountArgs): Promise<boolean> {
@@ -64,6 +71,7 @@ export class ComboRepository implements IComboRepository {
     await this.prisma.comboItem.create({
       data: { comboId, productId, quantity, sortOrder },
     });
+    this.catalogCache.invalidar();
     const combo = await this.prisma.combo.findUnique({
       where: { id: comboId },
       include: COMBO_FULL_INCLUDE,
@@ -80,6 +88,7 @@ export class ComboRepository implements IComboRepository {
     const result = await this.prisma.comboItem.deleteMany({
       where: { id: itemId, comboId },
     });
+    this.catalogCache.invalidar();
     if (result.count === 0) {
       throw new NotFoundException(
         `Item with id ${itemId} not found in combo ${comboId}`,

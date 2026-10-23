@@ -168,16 +168,19 @@ export class OrderRepository implements IOrderRepository {
     const hasPagination =
       typeof filters.skip === "number" || typeof filters.take === "number";
 
-    const orders = await this.prisma.order.findMany({
-      where,
-      include: ORDER_FULL_INCLUDE,
-      orderBy: { createdAt: "desc" },
-      ...(hasPagination ? { skip: filters.skip, take: filters.take } : {}),
-    });
+    // Página y total en paralelo: un viaje a la BD en vez de dos.
+    const [orders, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where,
+        include: ORDER_FULL_INCLUDE,
+        orderBy: { createdAt: "desc" },
+        ...(hasPagination ? { skip: filters.skip, take: filters.take } : {}),
+      }),
+      hasPagination ? this.prisma.order.count({ where }) : undefined,
+    ]);
     const data = orders.map((order) => OrderEntity.fromPrisma(order));
 
     if (hasPagination) {
-      const total = await this.prisma.order.count({ where });
       return { data, total };
     }
     return { data };

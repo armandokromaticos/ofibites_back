@@ -6,6 +6,7 @@ import type { IComboRepository } from "../../../domain/repositories/combo.reposi
 import { COMBO_REPOSITORY } from "../../../domain/repositories/combo.repository.interface";
 import type { ISectionRepository } from "../../../domain/repositories/section.repository.interface";
 import { SECTION_REPOSITORY } from "../../../domain/repositories/section.repository.interface";
+import { CatalogCacheService } from "../../../infrastructure/catalog-cache/catalog-cache.service";
 import { TagEntity } from "../../../domain/entities/tag.entity";
 import { CatalogFilter } from "../../../domain/enums/catalog-filter.enum";
 import { Lang } from "../../../domain/enums/lang.enum";
@@ -58,6 +59,7 @@ export class GetCatalogUseCase {
     private readonly productRepository: IProductRepository,
     @Inject(COMBO_REPOSITORY)
     private readonly comboRepository: IComboRepository,
+    private readonly catalogCache: CatalogCacheService,
   ) {}
 
   /**
@@ -75,12 +77,16 @@ export class GetCatalogUseCase {
     const pageSize = query.pageSize ?? CATALOG_DEFAULT_PAGE_SIZE;
     const newSince = caracasDayStartDaysAgo(CATALOG_NEW_DAYS, options.now);
 
+    // Cachea el catálogo activo, no la respuesta: filtros, "Nuevos" y
+    // paginación se siguen calculando en cada petición.
     const [{ data: sections }, { data: products }, { data: combos }] =
-      await Promise.all([
-        this.sectionRepository.findMany(CATALOG_SECTION_ARGS),
-        this.productRepository.findMany(CATALOG_PRODUCT_ARGS),
-        this.comboRepository.findMany({ where: { isActive: true } }),
-      ]);
+      await this.catalogCache.obtener("catalogo:activo", () =>
+        Promise.all([
+          this.sectionRepository.findMany(CATALOG_SECTION_ARGS),
+          this.productRepository.findMany(CATALOG_PRODUCT_ARGS),
+          this.comboRepository.findMany({ where: { isActive: true } }),
+        ]),
+      );
 
     const selectedSection = query.section
       ? sections.find((section) => section.slug === query.section)

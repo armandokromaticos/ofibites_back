@@ -1,17 +1,22 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../database/prisma/prisma.service";
+import { CatalogCacheService } from "../catalog-cache/catalog-cache.service";
 import { IProductSizeRepository } from "../../domain/repositories/product-size.repository.interface";
 import { ProductSizeEntity } from "../../domain/entities/product-size.entity";
 
 @Injectable()
 export class ProductSizeRepository implements IProductSizeRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly catalogCache: CatalogCacheService,
+  ) {}
 
   async create(entity: ProductSizeEntity): Promise<ProductSizeEntity> {
     const size = await this.prisma.productSize.create({
       data: entity.toPrismaCreate(),
     });
+    this.catalogCache.invalidar();
     return ProductSizeEntity.fromPrisma(size);
   }
 
@@ -41,11 +46,13 @@ export class ProductSizeRepository implements IProductSizeRepository {
 
   async update(args: Prisma.ProductSizeUpdateArgs): Promise<ProductSizeEntity> {
     const size = await this.prisma.productSize.update(args);
+    this.catalogCache.invalidar();
     return ProductSizeEntity.fromPrisma(size);
   }
 
   async delete(id: string): Promise<void> {
     await this.prisma.productSize.delete({ where: { id } });
+    this.catalogCache.invalidar();
   }
 
   async exists(args: Prisma.ProductSizeCountArgs): Promise<boolean> {

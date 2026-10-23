@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../database/prisma/prisma.service";
+import { CatalogCacheService } from "../catalog-cache/catalog-cache.service";
 import {
   ISectionRepository,
   SECTION_FULL_INCLUDE,
@@ -9,13 +10,17 @@ import { SectionEntity } from "../../domain/entities/section.entity";
 
 @Injectable()
 export class SectionRepository implements ISectionRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly catalogCache: CatalogCacheService,
+  ) {}
 
   async create(entity: SectionEntity): Promise<SectionEntity> {
     const section = await this.prisma.section.create({
       data: entity.toPrismaCreate(),
       include: SECTION_FULL_INCLUDE,
     });
+    this.catalogCache.invalidar();
     return SectionEntity.fromPrisma(section);
   }
 
@@ -43,11 +48,13 @@ export class SectionRepository implements ISectionRepository {
 
   async update(args: Prisma.SectionUpdateArgs): Promise<SectionEntity> {
     const section = await this.prisma.section.update(args);
+    this.catalogCache.invalidar();
     return SectionEntity.fromPrisma(section);
   }
 
   async delete(id: string): Promise<void> {
     await this.prisma.section.delete({ where: { id } });
+    this.catalogCache.invalidar();
   }
 
   async exists(args: Prisma.SectionCountArgs): Promise<boolean> {
@@ -69,6 +76,7 @@ export class SectionRepository implements ISectionRepository {
     await this.prisma.sectionItem.create({
       data: { sectionId, productId, comboId, order },
     });
+    this.catalogCache.invalidar();
     const section = await this.prisma.section.findUnique({
       where: { id: sectionId },
       include: SECTION_FULL_INCLUDE,
@@ -80,6 +88,7 @@ export class SectionRepository implements ISectionRepository {
     const result = await this.prisma.sectionItem.deleteMany({
       where: { id: itemId, sectionId },
     });
+    this.catalogCache.invalidar();
     return result.count;
   }
 
@@ -107,6 +116,7 @@ export class SectionRepository implements ISectionRepository {
         }),
       ),
     );
+    this.catalogCache.invalidar();
     const section = await this.prisma.section.findUnique({
       where: { id: sectionId },
       include: SECTION_FULL_INCLUDE,

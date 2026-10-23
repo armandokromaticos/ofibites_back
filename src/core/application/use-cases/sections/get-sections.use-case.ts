@@ -5,12 +5,14 @@ import {
   SECTION_REPOSITORY,
 } from "../../../domain/repositories/section.repository.interface";
 import { SectionEntity } from "../../../domain/entities/section.entity";
+import { CatalogCacheService } from "../../../infrastructure/catalog-cache/catalog-cache.service";
 
 @Injectable()
 export class GetSectionsUseCase {
   constructor(
     @Inject(SECTION_REPOSITORY)
     private readonly sectionRepository: ISectionRepository,
+    private readonly catalogCache: CatalogCacheService,
   ) {}
 
   async execute(activeOnly?: boolean): Promise<SectionEntity[]> {
@@ -28,11 +30,16 @@ export class GetSectionsUseCase {
           },
         }
       : SECTION_FULL_INCLUDE;
-    const { data } = await this.sectionRepository.findMany({
-      where,
-      include,
-      orderBy: { order: "asc" },
-    });
+    const load = () =>
+      this.sectionRepository.findMany({
+        where,
+        include,
+        orderBy: { order: "asc" },
+      });
+    // Solo la lista pública (activas); la de admin va siempre a la BD.
+    const { data } = activeOnly
+      ? await this.catalogCache.obtener("secciones:activas", load)
+      : await load();
     return data;
   }
 }

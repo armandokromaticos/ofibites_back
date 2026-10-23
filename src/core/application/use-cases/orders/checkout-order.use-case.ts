@@ -22,6 +22,11 @@ import {
   resolveUnavailabilityCode,
 } from "../../services/line-item-availability.service";
 import { assertCompanyActive } from "../../shared/company-active.guard";
+import { settleInOrder } from "../../shared/settle-in-order.util";
+import {
+  LINE_CONCURRENCY,
+  mapWithConcurrency,
+} from "../../shared/map-with-concurrency.util";
 import { deliveryCutoffError } from "../../shared/delivery-cutoff";
 import {
   checkoutBadRequest,
@@ -95,10 +100,12 @@ export class CheckoutOrderUseCase {
     dto: CheckoutOrderDto,
     now: Date = new Date(),
   ): Promise<OrderEntity> {
-    await assertCompanyActive(companyId, {
-      companyRepository: this.companyRepository,
-    });
-    await this.assertShippingAddress(companyId, dto.deliveryAddressId);
+    await settleInOrder([
+      assertCompanyActive(companyId, {
+        companyRepository: this.companyRepository,
+      }),
+      this.assertShippingAddress(companyId, dto.deliveryAddressId),
+    ]);
 
     const cutoffError = deliveryCutoffError(dto.deliveryDate, now);
     if (cutoffError) {
@@ -209,9 +216,13 @@ export class CheckoutOrderUseCase {
     cartItems: CartItemInfo[],
     inputs: LineItemInput[],
   ): Promise<CheckoutUnavailableLine[]> {
+    // Hasta LINE_CONCURRENCY líneas a la vez; el resultado sigue el orden del carrito.
+    const codes = await mapWithConcurrency(inputs, LINE_CONCURRENCY, (input) =>
+      this.unavailabilityCode(input),
+    );
     const result: CheckoutUnavailableLine[] = [];
     for (const [index, item] of cartItems.entries()) {
-      const code = await this.unavailabilityCode(inputs[index]);
+      const code = codes[index];
       if (!code) continue;
       const display = item.display;
       result.push({

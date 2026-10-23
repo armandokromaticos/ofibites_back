@@ -9,6 +9,7 @@ import {
 } from "../../../domain/repositories/combo.repository.interface";
 import type { ISectionRepository } from "../../../domain/repositories/section.repository.interface";
 import { SECTION_REPOSITORY } from "../../../domain/repositories/section.repository.interface";
+import { CatalogCacheService } from "../../../infrastructure/catalog-cache/catalog-cache.service";
 import { ProductEntity } from "../../../domain/entities/product.entity";
 import { IngredientEntity } from "../../../domain/entities/ingredient.entity";
 import { Lang } from "../../../domain/enums/lang.enum";
@@ -71,6 +72,7 @@ export class GetCatalogItemUseCase {
     private readonly productRepository: IProductRepository,
     @Inject(COMBO_REPOSITORY)
     private readonly comboRepository: IComboRepository,
+    private readonly catalogCache: CatalogCacheService,
   ) {}
 
   /**
@@ -87,20 +89,24 @@ export class GetCatalogItemUseCase {
     const newSince = caracasDayStartDaysAgo(CATALOG_NEW_DAYS, options.now);
     const self: ItemRef = { kind, id };
 
-    const [detail, sectionRefs] = await Promise.all([
-      kind === CATALOG_ITEM_KIND.PRODUCT
-        ? this.productDetail(id, lang, newSince)
-        : this.comboDetail(id, lang, newSince),
-      this.sectionCandidates(self),
-    ]);
+    // La clave lleva el corte de "Nuevos" para no servir isNew de ayer.
+    const key = `ficha:${kind}:${id}:${lang}:${newSince.getTime()}`;
+    return this.catalogCache.obtener(key, async () => {
+      const [detail, sectionRefs] = await Promise.all([
+        kind === CATALOG_ITEM_KIND.PRODUCT
+          ? this.productDetail(id, lang, newSince)
+          : this.comboDetail(id, lang, newSince),
+        this.sectionCandidates(self),
+      ]);
 
-    detail.recommendations = await this.recommendations(
-      self,
-      sectionRefs,
-      lang,
-      newSince,
-    );
-    return detail;
+      detail.recommendations = await this.recommendations(
+        self,
+        sectionRefs,
+        lang,
+        newSince,
+      );
+      return detail;
+    });
   }
 
   private async productDetail(
