@@ -16,7 +16,7 @@ function setup(availabilityError?: Error) {
   const orderRepository = { create: jest.fn() };
   const pricing = { priceOrderLines: jest.fn() };
   const availability = {
-    assertAvailable: jest.fn(() =>
+    assertAvailableMany: jest.fn(() =>
       availabilityError ? Promise.reject(availabilityError) : Promise.resolve(),
     ),
   };
@@ -60,22 +60,22 @@ describe("CreateOrderUseCase · disponibilidad del catálogo", () => {
     await expect(
       useCase.execute("user-1", Role.SUPER_ADMIN, dto),
     ).rejects.toThrow(message);
-    expect(availability.assertAvailable).toHaveBeenCalledWith(dto.items[0]);
+    expect(availability.assertAvailableMany).toHaveBeenCalledWith(dto.items);
     expect(pricing.priceOrderLines).not.toHaveBeenCalled();
     expect(orderRepository.create).not.toHaveBeenCalled();
   });
 
-  it("valida cada línea antes de cotizar", async () => {
+  it("valida todas las líneas (en un lote) antes de cotizar", async () => {
     const { useCase, pricing, availability } = setup();
     pricing.priceOrderLines.mockRejectedValue(new Error("corte del test"));
 
     await expect(
       useCase.execute("user-1", Role.SUPER_ADMIN, dto),
     ).rejects.toThrow("corte del test");
-    expect(availability.assertAvailable).toHaveBeenCalledTimes(2);
-    expect(availability.assertAvailable).toHaveBeenNthCalledWith(
-      2,
-      dto.items[1],
-    );
+    expect(availability.assertAvailableMany).toHaveBeenCalledTimes(1);
+    expect(availability.assertAvailableMany).toHaveBeenCalledWith(dto.items);
+    expect(
+      availability.assertAvailableMany.mock.invocationCallOrder[0],
+    ).toBeLessThan(pricing.priceOrderLines.mock.invocationCallOrder[0]);
   });
 });

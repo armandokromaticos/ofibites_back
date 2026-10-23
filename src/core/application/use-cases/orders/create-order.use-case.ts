@@ -64,9 +64,7 @@ export class CreateOrderUseCase {
     await this.validateCompanyContext(userId, userRole, dto);
 
     // Una orden nueva solo con catálogo disponible (activos, combos coherentes).
-    for (const itemDto of dto.items) {
-      await this.lineItemAvailability.assertAvailable(itemDto);
-    }
+    await this.lineItemAvailability.assertAvailableMany(dto.items);
 
     const items: CreateOrderItemParams[] =
       await this.lineItemPricingService.priceOrderLines(dto.items);

@@ -24,14 +24,14 @@ function setup(subtotals: number[]) {
       getOrCreateViewByCompanyId: jest.fn(() => Promise.resolve(cart)),
     } as unknown as ICartRepository,
     {
-      priceLineItem: jest.fn(({ productId }: { productId: string }) => {
-        const subtotal = subtotals[Number(productId.slice(2))];
-        return Promise.resolve({
-          unitPrice: subtotal,
-          subtotal,
-          modifiers: [],
-        });
-      }),
+      priceLines: jest.fn((inputs: { productId: string }[]) =>
+        Promise.resolve(
+          inputs.map(({ productId }) => {
+            const subtotal = subtotals[Number(productId.slice(2))];
+            return { unitPrice: subtotal, subtotal, modifiers: [] };
+          }),
+        ),
+      ),
     } as unknown as LineItemPricingService,
   );
   return service;

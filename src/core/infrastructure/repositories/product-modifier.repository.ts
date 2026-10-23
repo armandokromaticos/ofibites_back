@@ -121,16 +121,21 @@ export class ProductModifierRepository implements IProductModifierRepository {
 
   async findSizePricesBatch(
     modifierIds: string[],
-    productSizeId: string,
-  ): Promise<Map<string, number>> {
+    productSizeIds: string[],
+  ): Promise<Map<string, Map<string, number>>> {
     const records = await this.prisma.modifierSizePrice.findMany({
-      where: { modifierId: { in: modifierIds }, productSizeId },
+      where: {
+        modifierId: { in: modifierIds },
+        productSizeId: { in: productSizeIds },
+      },
     });
-    return new Map(
-      records.map((record) => [
-        record.modifierId,
-        Number(record.priceAdjustment),
-      ]),
-    );
+    const bySize = new Map<string, Map<string, number>>();
+    for (const record of records) {
+      const prices =
+        bySize.get(record.productSizeId) ?? new Map<string, number>();
+      prices.set(record.modifierId, Number(record.priceAdjustment));
+      bySize.set(record.productSizeId, prices);
+    }
+    return bySize;
   }
 }

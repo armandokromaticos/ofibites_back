@@ -13,6 +13,9 @@ import type { IProductModifierRepository } from "../../domain/repositories/produ
 import { PRODUCT_MODIFIER_REPOSITORY } from "../../domain/repositories/product-modifier.repository.interface";
 import type { IProductModifierGroupRepository } from "../../domain/repositories/product-modifier-group.repository.interface";
 import { PRODUCT_MODIFIER_GROUP_REPOSITORY } from "../../domain/repositories/product-modifier-group.repository.interface";
+import type { ProductEntity } from "../../domain/entities/product.entity";
+import type { ComboEntity } from "../../domain/entities/combo.entity";
+import type { ProductSizeEntity } from "../../domain/entities/product-size.entity";
 import type { ProductModifierEntity } from "../../domain/entities/product-modifier.entity";
 import type { ProductModifierGroupEntity } from "../../domain/entities/product-modifier-group.entity";
 import type { IComboRepository } from "../../domain/repositories/combo.repository.interface";
@@ -84,108 +87,168 @@ export class LineItemAvailabilityService {
    * lanza: el 404 lo da `priceLineItem`, como hasta ahora.
    */
   async assertAvailable(input: LineItemInput): Promise<void> {
-    const found = await this.check(input);
-    if (found && found.code !== "NOT_FOUND") {
-      throw new BadRequestException(found.message);
+    await this.assertAvailableMany([input]);
+  }
+
+  /** Como `assertAvailable` para varias líneas: el 400 es el de la primera que falle. */
+  async assertAvailableMany(inputs: LineItemInput[]): Promise<void> {
+    for (const found of await this.checkMany(inputs)) {
+      if (found && found.code !== "NOT_FOUND") {
+        throw new BadRequestException(found.message);
+      }
     }
   }
 
   /** Devuelve el primer problema de la línea (con su `code`) o null. */
   async check(input: LineItemInput): Promise<LineAvailabilityIssue | null> {
-    return evaluateLineAvailability(await this.loadSnapshot(input));
+    const [found] = await this.checkMany([input]);
+    return found;
   }
 
-  private async loadSnapshot(
-    input: LineItemInput,
-  ): Promise<LineAvailabilitySnapshot> {
-    const line = {
+  /** `check` de varias líneas con un número fijo de consultas, en el mismo orden. */
+  async checkMany(
+    inputs: LineItemInput[],
+  ): Promise<(LineAvailabilityIssue | null)[]> {
+    const snapshots = await this.loadSnapshots(inputs);
+    return snapshots.map(evaluateLineAvailability);
+  }
+
+  private async loadSnapshots(
+    inputs: LineItemInput[],
+  ): Promise<LineAvailabilitySnapshot[]> {
+    const lines = inputs.map((input) => ({
       productId: input.productId,
       productSizeId: input.productSizeId ?? null,
       comboId: input.comboId ?? null,
       modifierIds: (input.modifiers ?? []).map((m) => m.modifierId),
-    };
+    }));
 
-    if (line.comboId) {
-      // Sin consultas si ya falla por configuración.
-      if (line.productSizeId || line.modifierIds.length > 0) {
-        return { line };
+    const productIds = new Set<string>();
+    const comboIds = new Set<string>();
+    const sizeIds = new Set<string>();
+    const modifierIds = new Set<string>();
+    const pricedSizeIds = new Set<string>();
+    for (const line of lines) {
+      if (line.comboId) {
+        // Sin consultas si ya falla por configuración.
+        if (!line.productSizeId && line.modifierIds.length === 0) {
+          comboIds.add(line.comboId);
+        }
+        continue;
       }
-      const combo = await this.comboRepository.findUnique({
-        where: { id: line.comboId },
-        include: COMBO_FULL_INCLUDE,
-      });
-      return {
-        line,
-        combo: combo
-          ? {
-              isActive: combo.isActive,
-              productIds: (combo.items ?? []).map((item) => item.productId),
-            }
-          : null,
-      };
+      productIds.add(line.productId);
+      if (line.productSizeId) sizeIds.add(line.productSizeId);
+      for (const id of line.modifierIds) modifierIds.add(id);
+      if (line.productSizeId && line.modifierIds.length > 0) {
+        pricedSizeIds.add(line.productSizeId);
+      }
     }
+    const ids = (set: Set<string>) => ({ in: [...set] });
 
-    const hasModifiers = line.modifierIds.length > 0;
     // Todo en un viaje: los grupos se piden por "contienen alguno de los
     // modificadores", que es el mismo conjunto que por sus groupId.
-    const [product, size, { data }, { data: groups }, sizePrices] =
-      await Promise.all([
-        this.productRepository.findUnique({
-          where: { id: line.productId },
-          include: { sizes: { where: { isActive: true } } },
-        }),
-        line.productSizeId
-          ? this.productSizeRepository.findUnique({
-              where: { id: line.productSizeId },
-            })
+    const [
+      { data: combos },
+      { data: products },
+      { data: sizes },
+      { data: modifierRows },
+      { data: groups },
+      sizePrices,
+    ] = await Promise.all([
+      comboIds.size > 0
+        ? this.comboRepository.findMany({
+            where: { id: ids(comboIds) },
+            include: COMBO_FULL_INCLUDE,
+          })
+        : { data: [] as ComboEntity[] },
+      productIds.size > 0
+        ? this.productRepository.findMany({
+            where: { id: ids(productIds) },
+            include: { sizes: { where: { isActive: true } } },
+          })
+        : { data: [] as ProductEntity[] },
+      sizeIds.size > 0
+        ? this.productSizeRepository.findMany({ where: { id: ids(sizeIds) } })
+        : { data: [] as ProductSizeEntity[] },
+      modifierIds.size > 0
+        ? this.productModifierRepository.findMany({
+            where: { id: ids(modifierIds) },
+          })
+        : { data: [] as ProductModifierEntity[] },
+      modifierIds.size > 0
+        ? this.productModifierGroupRepository.findMany({
+            where: { modifiers: { some: { id: ids(modifierIds) } } },
+          })
+        : { data: [] as ProductModifierGroupEntity[] },
+      pricedSizeIds.size > 0
+        ? this.productModifierRepository.findSizePricesBatch(
+            [...modifierIds],
+            [...pricedSizeIds],
+          )
+        : new Map<string, Map<string, number>>(),
+    ]);
+
+    const combosById = new Map(combos.map((c) => [c.id, c] as const));
+    const productsById = new Map(products.map((p) => [p.id, p] as const));
+    const sizesById = new Map(sizes.map((s) => [s.id, s] as const));
+    const modifiersById = new Map(modifierRows.map((m) => [m.id, m] as const));
+    const groupProduct = new Map(groups.map((g) => [g.id, g.productId]));
+
+    return lines.map((line): LineAvailabilitySnapshot => {
+      if (line.comboId) {
+        if (line.productSizeId || line.modifierIds.length > 0) {
+          return { line };
+        }
+        const combo = combosById.get(line.comboId);
+        return {
+          line,
+          combo: combo
+            ? {
+                isActive: combo.isActive,
+                productIds: (combo.items ?? []).map((item) => item.productId),
+              }
+            : null,
+        };
+      }
+
+      const product = productsById.get(line.productId);
+      const size = line.productSizeId
+        ? sizesById.get(line.productSizeId)
+        : undefined;
+      const sizePriced = line.productSizeId
+        ? sizePrices.get(line.productSizeId)
+        : undefined;
+      const modifiers: LineAvailabilitySnapshot["modifiers"] = [];
+      for (const id of new Set(line.modifierIds)) {
+        const m = modifiersById.get(id);
+        if (!m) continue;
+        modifiers.push({
+          id: m.id,
+          isActive: m.isActive,
+          groupProductId: groupProduct.get(m.groupId) ?? null,
+          sizeRestricted: m.sizeRestricted,
+          pricedSizeIds:
+            line.productSizeId && sizePriced?.has(m.id)
+              ? [line.productSizeId]
+              : [],
+        });
+      }
+
+      return {
+        line,
+        product: product
+          ? {
+              isActive: product.isActive,
+              hasActiveSizes: (product.sizes ?? []).some((s) => s.isActive),
+            }
           : null,
-        hasModifiers
-          ? this.productModifierRepository.findMany({
-              where: { id: { in: line.modifierIds } },
-            })
-          : { data: [] as ProductModifierEntity[] },
-        hasModifiers
-          ? this.productModifierGroupRepository.findMany({
-              where: { modifiers: { some: { id: { in: line.modifierIds } } } },
-            })
-          : { data: [] as ProductModifierGroupEntity[] },
-        hasModifiers && line.productSizeId
-          ? this.productModifierRepository.findSizePricesBatch(
-              line.modifierIds,
-              line.productSizeId,
-            )
-          : new Map<string, number>(),
-      ]);
-
-    let modifiers: LineAvailabilitySnapshot["modifiers"] = [];
-    if (hasModifiers) {
-      const groupProduct = new Map(groups.map((g) => [g.id, g.productId]));
-      modifiers = data.map((m) => ({
-        id: m.id,
-        isActive: m.isActive,
-        groupProductId: groupProduct.get(m.groupId) ?? null,
-        sizeRestricted: m.sizeRestricted,
-        pricedSizeIds:
-          line.productSizeId && sizePrices.has(m.id)
-            ? [line.productSizeId]
-            : [],
-      }));
-    }
-
-    return {
-      line,
-      product: product
-        ? {
-            isActive: product.isActive,
-            hasActiveSizes: (product.sizes ?? []).some((s) => s.isActive),
-          }
-        : null,
-      size: line.productSizeId
-        ? size
-          ? { productId: size.productId, isActive: size.isActive }
-          : null
-        : undefined,
-      modifiers,
-    };
+        size: line.productSizeId
+          ? size
+            ? { productId: size.productId, isActive: size.isActive }
+            : null
+          : undefined,
+        modifiers,
+      };
+    });
   }
 }

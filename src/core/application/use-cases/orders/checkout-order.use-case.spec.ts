@@ -134,10 +134,15 @@ function setup(
       });
     }),
   };
-  // Servicio real (priceOrderLines delega en priceLineItem) con priceLineItem simulado.
+  // Servicio real (priceOrderLines delega en priceLines) con priceLineItem
+  // simulado y priceLines cotizando con él línea a línea.
   const pricingService = Object.assign(
     Object.create(LineItemPricingService.prototype) as LineItemPricingService,
     pricing,
+    {
+      priceLines: (inputs: LineItemInput[]) =>
+        Promise.all(inputs.map((input) => pricing.priceLineItem(input))),
+    },
   );
   const unavailable = new Set(options.unavailable ?? []);
   const availability = {

@@ -10,10 +10,6 @@ import {
   CartResponseDto,
 } from "../dto/cart/cart-response.dto";
 import { buildOrderSummary } from "../shared/order-summary.config";
-import {
-  LINE_CONCURRENCY,
-  mapWithConcurrency,
-} from "../shared/map-with-concurrency.util";
 
 /**
  * Carga el carrito de la empresa y arma la respuesta recalculando precios
@@ -41,17 +37,14 @@ export class CartViewService {
     cart: CartEntity,
     lang: Lang,
   ): Promise<CartResponseDto> {
-    const pricedItems = await mapWithConcurrency(
-      cart.items,
-      LINE_CONCURRENCY,
-      (item) =>
-        this.lineItemPricingService.priceLineItem({
-          productId: item.productId,
-          productSizeId: item.productSizeId,
-          comboId: item.comboId,
-          quantity: item.quantity,
-          modifiers: item.modifierIds.map((modifierId) => ({ modifierId })),
-        }),
+    const pricedItems = await this.lineItemPricingService.priceLines(
+      cart.items.map((item) => ({
+        productId: item.productId,
+        productSizeId: item.productSizeId,
+        comboId: item.comboId,
+        quantity: item.quantity,
+        modifiers: item.modifierIds.map((modifierId) => ({ modifierId })),
+      })),
     );
 
     const items: CartItemResponseDto[] = [];
