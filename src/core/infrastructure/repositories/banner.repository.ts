@@ -1,17 +1,22 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../database/prisma/prisma.service";
+import { CatalogCacheService } from "../catalog-cache/catalog-cache.service";
 import { IBannerRepository } from "../../domain/repositories/banner.repository.interface";
 import { BannerEntity } from "../../domain/entities/banner.entity";
 
 @Injectable()
 export class BannerRepository implements IBannerRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly catalogCache: CatalogCacheService,
+  ) {}
 
   async create(entity: BannerEntity): Promise<BannerEntity> {
     const banner = await this.prisma.banner.create({
       data: entity.toPrismaCreate(),
     });
+    this.catalogCache.invalidar();
     return BannerEntity.fromPrisma(banner);
   }
 
@@ -39,11 +44,13 @@ export class BannerRepository implements IBannerRepository {
 
   async update(args: Prisma.BannerUpdateArgs): Promise<BannerEntity> {
     const banner = await this.prisma.banner.update(args);
+    this.catalogCache.invalidar();
     return BannerEntity.fromPrisma(banner);
   }
 
   async delete(id: string): Promise<void> {
     await this.prisma.banner.delete({ where: { id } });
+    this.catalogCache.invalidar();
   }
 
   async exists(args: Prisma.BannerCountArgs): Promise<boolean> {

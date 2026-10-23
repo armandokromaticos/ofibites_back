@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../database/prisma/prisma.service";
+import { CatalogCacheService } from "../catalog-cache/catalog-cache.service";
 import {
   IProductModifierRepository,
   ModifierSizePriceEntry,
@@ -10,13 +11,17 @@ import { ProductModifierEntity } from "../../domain/entities/product-modifier.en
 
 @Injectable()
 export class ProductModifierRepository implements IProductModifierRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly catalogCache: CatalogCacheService,
+  ) {}
 
   async create(entity: ProductModifierEntity): Promise<ProductModifierEntity> {
     const modifier = await this.prisma.productModifier.create({
       data: entity.toPrismaCreate(),
       include: PRODUCT_MODIFIER_FULL_INCLUDE,
     });
+    this.catalogCache.invalidar();
     return ProductModifierEntity.fromPrisma(modifier);
   }
 
@@ -48,11 +53,13 @@ export class ProductModifierRepository implements IProductModifierRepository {
     args: Prisma.ProductModifierUpdateArgs,
   ): Promise<ProductModifierEntity> {
     const modifier = await this.prisma.productModifier.update(args);
+    this.catalogCache.invalidar();
     return ProductModifierEntity.fromPrisma(modifier);
   }
 
   async delete(id: string): Promise<void> {
     await this.prisma.productModifier.delete({ where: { id } });
+    this.catalogCache.invalidar();
   }
 
   async exists(args: Prisma.ProductModifierCountArgs): Promise<boolean> {
@@ -65,12 +72,14 @@ export class ProductModifierRepository implements IProductModifierRepository {
       data: tagIds.map((tagId) => ({ modifierId, tagId })),
       skipDuplicates: true,
     });
+    this.catalogCache.invalidar();
   }
 
   async removeTag(modifierId: string, tagId: string): Promise<void> {
     await this.prisma.productModifierTag.delete({
       where: { modifierId_tagId: { modifierId, tagId } },
     });
+    this.catalogCache.invalidar();
   }
 
   async setSizePrices(
@@ -87,6 +96,7 @@ export class ProductModifierRepository implements IProductModifierRepository {
         })),
       }),
     ]);
+    this.catalogCache.invalidar();
   }
 
   async findSizePrices(modifierId: string): Promise<ModifierSizePriceEntry[]> {

@@ -9,6 +9,7 @@ import { ComboEntity } from "../../../domain/entities/combo.entity";
 import { SectionEntity } from "../../../domain/entities/section.entity";
 import { CatalogFilter } from "../../../domain/enums/catalog-filter.enum";
 import { Lang } from "../../../domain/enums/lang.enum";
+import { CatalogCacheService } from "../../../infrastructure/catalog-cache/catalog-cache.service";
 
 // 2026-10-15 12:00 en Caracas (UTC-4). Corte de "Nuevos": 2026-09-15 00:00 Caracas.
 const NOW = new Date("2026-10-15T16:00:00.000Z");
@@ -187,6 +188,7 @@ describe("GetCatalogUseCase", () => {
     sectionRepository,
     productRepository,
     comboRepository,
+    new CatalogCacheService(),
   );
   const run = (query: Parameters<GetCatalogUseCase["execute"]>[0] = {}) =>
     useCase.execute(query, { now: NOW });
@@ -307,5 +309,31 @@ describe("GetCatalogUseCase", () => {
         { id: TAG_KETO.id, name: "Keto" },
       ],
     });
+  });
+
+  it("cachea el catálogo activo, no la respuesta: los filtros se aplican en cada consulta", async () => {
+    const findSections = jest.fn().mockResolvedValue({ data: sections });
+    const findProducts = jest.fn().mockResolvedValue({ data: products });
+    const findCombos = jest.fn().mockResolvedValue({ data: combos });
+    const cache = new CatalogCacheService();
+    const cached = new GetCatalogUseCase(
+      { findMany: findSections } as unknown as ISectionRepository,
+      { findMany: findProducts } as unknown as IProductRepository,
+      { findMany: findCombos } as unknown as IComboRepository,
+      cache,
+    );
+
+    const todos = await cached.execute({}, { now: NOW });
+    const bebidas = await cached.execute({ section: "bebidas" }, { now: NOW });
+
+    expect(ids(todos)).toHaveLength(5);
+    expect(ids(bebidas)).toEqual(["p-cafe", "p-agua"]);
+    expect(findSections).toHaveBeenCalledTimes(1);
+    expect(findProducts).toHaveBeenCalledTimes(1);
+    expect(findCombos).toHaveBeenCalledTimes(1);
+
+    cache.invalidar();
+    await cached.execute({}, { now: NOW });
+    expect(findProducts).toHaveBeenCalledTimes(2);
   });
 });
