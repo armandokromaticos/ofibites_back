@@ -211,12 +211,24 @@ export class CompanyMembersController {
     companyRoles: [CompanyRole.COMPANY_ADMIN],
   })
   @ApiOperation({ summary: "Actualizar miembro" })
+  @ApiResponse({
+    status: 403,
+    description:
+      "No puedes desactivar tu propia cuenta (isActive: false sobre tu propia membresía).",
+  })
+  @ApiResponse({ status: 404, description: "Miembro no encontrado." })
   async update(
     @Param("companyId", ParseUUIDPipe) companyId: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: UpdateCompanyMemberDto,
+    @CurrentUser() user: { id: string; role: Role },
   ): Promise<CompanyMemberResponseDto> {
-    const member = await this.updateUseCase.execute(companyId, id, dto);
+    const member = await this.updateUseCase.execute(
+      companyId,
+      id,
+      dto,
+      user.id,
+    );
     return CompanyMemberResponseDto.fromEntity(member);
   }
 
@@ -227,10 +239,17 @@ export class CompanyMembersController {
     companyRoles: [CompanyRole.COMPANY_ADMIN],
   })
   @ApiOperation({ summary: "Eliminar miembro" })
+  @ApiResponse({ status: 204, description: "Miembro eliminado." })
+  @ApiResponse({
+    status: 403,
+    description: "No puedes eliminar tu propia cuenta.",
+  })
+  @ApiResponse({ status: 404, description: "Miembro no encontrado." })
   async remove(
     @Param("companyId", ParseUUIDPipe) companyId: string,
     @Param("id", ParseUUIDPipe) id: string,
+    @CurrentUser() user: { id: string; role: Role },
   ): Promise<void> {
-    await this.deleteUseCase.execute(companyId, id);
+    await this.deleteUseCase.execute(companyId, id, user.id);
   }
 }
