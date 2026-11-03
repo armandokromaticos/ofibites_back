@@ -1,4 +1,8 @@
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { CompleteCompanyOnboardingUseCase } from "./complete-company-onboarding.use-case";
 import type { ICompanyRepository } from "../../../domain/repositories/company.repository.interface";
@@ -76,7 +80,11 @@ describe("CompleteCompanyOnboardingUseCase", () => {
     expect(result).toBeInstanceOf(Date);
     expect(exists).toHaveBeenCalledWith({ where: { companyId } });
     expect(update).toHaveBeenCalledWith({
-      where: { id: companyId, onboardingCompletedAt: null },
+      where: {
+        id: companyId,
+        onboardingCompletedAt: null,
+        addresses: { some: {} },
+      },
       data: { onboardingCompletedAt: result },
     });
   });
@@ -87,6 +95,17 @@ describe("CompleteCompanyOnboardingUseCase", () => {
     await expect(useCase.execute(companyId)).resolves.toBe(previa);
     expect(update).not.toHaveBeenCalled();
     expect(exists).not.toHaveBeenCalled();
+  });
+
+  it("lanza 403 si la empresa está desactivada, sin escribir", async () => {
+    findUnique.mockResolvedValue(company({ isActive: false }));
+    await expect(useCase.execute(companyId)).rejects.toThrow(
+      new ForbiddenException(
+        "La empresa está desactivada y no puede operar. Contacta con Ofibites.",
+      ),
+    );
+    expect(exists).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 
   it("lanza 400 si falta la dirección fiscal", async () => {
@@ -123,6 +142,18 @@ describe("CompleteCompanyOnboardingUseCase", () => {
       .mockResolvedValueOnce(company({ onboardingCompletedAt: ganadora }));
     update.mockRejectedValueOnce(p2025());
     await expect(useCase.execute(companyId)).resolves.toBe(ganadora);
+  });
+
+  it("si se borra la última sede entre la comprobación y el update (P2025), lanza 400 de sede", async () => {
+    findUnique
+      .mockResolvedValueOnce(company())
+      .mockResolvedValueOnce(company());
+    update.mockRejectedValueOnce(p2025());
+    const error = await useCase.execute(companyId).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as BadRequestException).message).toBe(
+      "Para completar el onboarding falta al menos una sede.",
+    );
   });
 
   it("si la empresa se borró entre la lectura y la escritura, lanza 404", async () => {

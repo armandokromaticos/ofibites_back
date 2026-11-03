@@ -1,6 +1,9 @@
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import type { ICompanyRepository } from "../../domain/repositories/company.repository.interface";
 
+export const COMPANY_INACTIVE_MESSAGE =
+  "La empresa está desactivada y no puede operar. Contacta con Ofibites.";
+
 export interface CompanyActiveDeps {
   companyRepository: ICompanyRepository;
 }
@@ -21,8 +24,6 @@ export async function assertCompanyActive(
     throw new NotFoundException(`Company with id ${companyId} not found`);
   }
   if (!company.isActive) {
-    throw new ForbiddenException(
-      "La empresa está desactivada y no puede operar. Contacta con Ofibites.",
-    );
+    throw new ForbiddenException(COMPANY_INACTIVE_MESSAGE);
   }
 }

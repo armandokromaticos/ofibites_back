@@ -4,6 +4,7 @@ import type { ICompanyRepository } from "../../../domain/repositories/company.re
 import { COMPANY_REPOSITORY } from "../../../domain/repositories/company.repository.interface";
 import { CompanyEntity } from "../../../domain/entities/company.entity";
 import { UpdateCompanyFiscalDataDto } from "../../dto/companies/update-company-fiscal-data.dto";
+import { assertCompanyActive } from "../../shared/company-active.guard";
 
 /**
  * T-34a: paso 1 del onboarding. El COMPANY_ADMIN (o un admin de plataforma)
@@ -21,6 +22,11 @@ export class UpdateCompanyFiscalDataUseCase {
     companyId: string,
     dto: UpdateCompanyFiscalDataDto,
   ): Promise<CompanyEntity> {
+    // 404 si no existe, 403 si está desactivada.
+    await assertCompanyActive(companyId, {
+      companyRepository: this.companyRepository,
+    });
+
     const data: Prisma.CompanyUpdateInput = {
       fiscalAddress: dto.fiscalAddress.trim(),
     };

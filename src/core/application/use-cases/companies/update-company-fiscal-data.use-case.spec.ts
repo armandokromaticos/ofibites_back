@@ -1,4 +1,4 @@
-import { NotFoundException } from "@nestjs/common";
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
@@ -10,12 +10,23 @@ import { UpdateCompanyFiscalDataDto } from "../../dto/companies/update-company-f
 describe("UpdateCompanyFiscalDataUseCase", () => {
   const companyId = "11111111-1111-1111-1111-111111111111";
   const update = jest.fn();
-  const companyRepository = { update } as unknown as ICompanyRepository;
+  const findUnique = jest.fn();
+  const companyRepository = {
+    update,
+    findUnique,
+  } as unknown as ICompanyRepository;
+
+  function company(isActive: boolean): CompanyEntity {
+    const entity = new CompanyEntity();
+    Object.assign(entity, { id: companyId, isActive });
+    return entity;
+  }
   let useCase: UpdateCompanyFiscalDataUseCase;
 
   beforeEach(() => {
     jest.clearAllMocks();
     update.mockResolvedValue(new CompanyEntity());
+    findUnique.mockResolvedValue(company(true));
     useCase = new UpdateCompanyFiscalDataUseCase(companyRepository);
   });
 
@@ -60,7 +71,27 @@ describe("UpdateCompanyFiscalDataUseCase", () => {
     expect(data).not.toHaveProperty("taxId");
   });
 
-  it("lanza 404 si la empresa no existe (P2025)", async () => {
+  it("lanza 404 si la empresa no existe, sin escribir", async () => {
+    findUnique.mockResolvedValue(null);
+    await expect(
+      useCase.execute(companyId, { fiscalAddress: "Av. Principal" }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("lanza 403 si la empresa está desactivada, sin escribir", async () => {
+    findUnique.mockResolvedValue(company(false));
+    await expect(
+      useCase.execute(companyId, { fiscalAddress: "Av. Principal" }),
+    ).rejects.toThrow(
+      new ForbiddenException(
+        "La empresa está desactivada y no puede operar. Contacta con Ofibites.",
+      ),
+    );
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("lanza 404 si la empresa se borra entre la comprobación y el update (P2025)", async () => {
     update.mockRejectedValueOnce(
       new Prisma.PrismaClientKnownRequestError("No record", {
         code: "P2025",
@@ -77,6 +108,19 @@ describe("UpdateCompanyFiscalDataUseCase", () => {
       const dto = plainToInstance(UpdateCompanyFiscalDataDto, body);
       return { dto, errors: await validate(dto) };
     }
+
+    it("con whitelist (como el ValidationPipe global) descarta legalName y taxId", async () => {
+      const dto = plainToInstance(UpdateCompanyFiscalDataDto, {
+        fiscalAddress: "Av. Principal",
+        legalName: "Otra C.A.",
+        taxId: "J-00000000-0",
+      });
+      const errors = await validate(dto, { whitelist: true });
+      expect(errors).toHaveLength(0);
+      expect(dto).not.toHaveProperty("legalName");
+      expect(dto).not.toHaveProperty("taxId");
+      expect(dto.fiscalAddress).toBe("Av. Principal");
+    });
 
     it("rechaza una dirección fiscal vacía, solo con espacios o ausente", async () => {
       expect((await validar({ fiscalAddress: "   " })).errors).toHaveLength(1);
