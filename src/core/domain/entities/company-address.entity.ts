@@ -1,4 +1,5 @@
 import { CompanyAddress as PrismaCompanyAddress, Prisma } from "@prisma/client";
+import { CompanyAddressType } from "../enums/company-address-type.enum";
 
 function trimOrNull(value: string | null | undefined): string | null {
   if (value === null || value === undefined) return null;
@@ -21,6 +22,7 @@ export interface CreateCompanyAddressParams {
   isBilling?: boolean;
   isShipping?: boolean;
   isPrimary?: boolean;
+  type?: CompanyAddressType | null;
 }
 
 export class CompanyAddressEntity {
@@ -39,6 +41,7 @@ export class CompanyAddressEntity {
   isBilling: boolean;
   isShipping: boolean;
   isPrimary: boolean;
+  type: CompanyAddressType | null;
   createdAt: Date;
   updatedAt: Date;
 
@@ -59,6 +62,7 @@ export class CompanyAddressEntity {
     entity.isBilling = prisma.isBilling;
     entity.isShipping = prisma.isShipping;
     entity.isPrimary = prisma.isPrimary;
+    entity.type = prisma.type as CompanyAddressType | null;
     entity.createdAt = prisma.createdAt;
     entity.updatedAt = prisma.updatedAt;
     return entity;
@@ -83,6 +87,7 @@ export class CompanyAddressEntity {
     entity.isBilling = params.isBilling ?? false;
     entity.isShipping = params.isShipping ?? true;
     entity.isPrimary = params.isPrimary ?? false;
+    entity.type = params.type ?? null;
     entity.createdAt = new Date();
     entity.updatedAt = new Date();
     return entity;
@@ -103,6 +108,7 @@ export class CompanyAddressEntity {
       isBilling: this.isBilling,
       isShipping: this.isShipping,
       isPrimary: this.isPrimary,
+      type: this.type,
       company: { connect: { id: this.companyId } },
     };
   }

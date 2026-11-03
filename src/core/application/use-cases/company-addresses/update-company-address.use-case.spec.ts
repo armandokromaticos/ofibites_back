@@ -2,6 +2,7 @@ import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { UpdateCompanyAddressUseCase } from "./update-company-address.use-case";
 import type { ICompanyAddressRepository } from "../../../domain/repositories/company-address.repository.interface";
 import { CompanyAddressEntity } from "../../../domain/entities/company-address.entity";
+import { CompanyAddressType } from "../../../domain/enums/company-address-type.enum";
 
 describe("UpdateCompanyAddressUseCase", () => {
   const companyId = "11111111-1111-1111-1111-111111111111";
@@ -72,6 +73,22 @@ describe("UpdateCompanyAddressUseCase", () => {
     await expect(
       useCase.execute(companyId, addressId, { label: "Otra" }),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("actualiza type y lo borra con null", async () => {
+    await useCase.execute(companyId, addressId, {
+      type: CompanyAddressType.OFFICE,
+    });
+    expect(update).toHaveBeenLastCalledWith({
+      where: { id: addressId },
+      data: { type: CompanyAddressType.OFFICE },
+    });
+
+    await useCase.execute(companyId, addressId, { type: null });
+    expect(update).toHaveBeenLastCalledWith({
+      where: { id: addressId },
+      data: { type: null },
+    });
   });
 
   it("actualiza contactName/contactPhone recortados", async () => {

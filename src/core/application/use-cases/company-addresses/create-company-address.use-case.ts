@@ -41,6 +41,7 @@ export class CreateCompanyAddressUseCase {
       isBilling: dto.isBilling,
       isShipping: dto.isShipping,
       isPrimary: dto.isPrimary,
+      type: dto.type ?? null,
     });
 
     // isBilling e isPrimary son invariantes independientes ("una sola

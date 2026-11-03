@@ -39,6 +39,8 @@ export class GetMeUseCase {
       dto.companyId = membership.companyId;
       dto.companyName = membership.companyName;
       dto.companyIsActive = membership.companyIsActive;
+      dto.onboardingCompletedAt =
+        membership.companyOnboardingCompletedAt?.toISOString() ?? null;
       dto.role = membership.role;
       dto.position = membership.position;
       dto.branchId = membership.branchId;

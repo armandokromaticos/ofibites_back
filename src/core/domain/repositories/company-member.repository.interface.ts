@@ -9,6 +9,8 @@ export interface CompanyMembershipDetails {
   companyId: string;
   companyName: string;
   companyIsActive: boolean;
+  /** T-34a: onboarding de la empresa; null = pendiente. */
+  companyOnboardingCompletedAt: Date | null;
   role: CompanyRole;
   position: string | null;
   branchId: string | null;

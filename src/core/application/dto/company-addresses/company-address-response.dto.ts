@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { CompanyAddressEntity } from "../../../domain/entities/company-address.entity";
+import { CompanyAddressType } from "../../../domain/enums/company-address-type.enum";
 
 export class CompanyAddressResponseDto {
   @ApiProperty()
@@ -57,6 +58,13 @@ export class CompanyAddressResponseDto {
   })
   isPrimary: boolean;
 
+  @ApiProperty({
+    enum: CompanyAddressType,
+    nullable: true,
+    description: "Tipo de sede. null en las direcciones creadas sin tipo.",
+  })
+  type: CompanyAddressType | null;
+
   @ApiProperty()
   createdAt: Date;
 
@@ -80,6 +88,7 @@ export class CompanyAddressResponseDto {
     dto.isBilling = entity.isBilling;
     dto.isShipping = entity.isShipping;
     dto.isPrimary = entity.isPrimary;
+    dto.type = entity.type;
     dto.createdAt = entity.createdAt;
     dto.updatedAt = entity.updatedAt;
     return dto;

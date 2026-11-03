@@ -10,7 +10,14 @@ import { CompanyRole } from "../../domain/enums/company-role.enum";
 import { AuthUserCacheService } from "../cache/auth-user-cache.service";
 
 const MEMBERSHIP_REFS_INCLUDE = {
-  company: { select: { id: true, legalName: true, isActive: true } },
+  company: {
+    select: {
+      id: true,
+      legalName: true,
+      isActive: true,
+      onboardingCompletedAt: true,
+    },
+  },
   branch: { select: { id: true, name: true } },
   department: { select: { id: true, name: true } },
 } as const satisfies Prisma.CompanyMemberInclude;
@@ -32,6 +39,7 @@ export class CompanyMemberRepository implements ICompanyMemberRepository {
       companyId: row.companyId,
       companyName: row.company.legalName,
       companyIsActive: row.company.isActive,
+      companyOnboardingCompletedAt: row.company.onboardingCompletedAt,
       role: row.role as CompanyRole,
       position: row.position,
       branchId: row.branchId,
