@@ -544,6 +544,8 @@ enum PeoplePerOrderRange {
 
 model CompanyRegistrationRequest {
   id                  String                    @id @default(uuid())
+  /// Correlativo global para el folio SOL-AAAA-NNNN (secuencia propia de Postgres).
+  requestNumber       Int                       @unique @default(autoincrement()) @map("request_number")
   legalName           String                    @map("legal_name")
   taxId               String                    @map("tax_id")
   contactName         String                    @map("contact_name")

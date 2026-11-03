@@ -4,10 +4,26 @@ import { RegistrationRequestStatus } from "../../../domain/enums/registration-re
 import { RegistrationSolution } from "../../../domain/enums/registration-solution.enum";
 import { OrderFrequency } from "../../../domain/enums/order-frequency.enum";
 import { PeoplePerOrderRange } from "../../../domain/enums/people-per-order-range.enum";
+import { formatRegistrationRequestFolio } from "../../../domain/services/registration-request-folio";
+import { caracasYear } from "../../shared/caracas-time.util";
 
 export class CompanyRegistrationRequestResponseDto {
   @ApiProperty()
   id: string;
+
+  @ApiProperty({
+    description:
+      "Correlativo global de la solicitud (secuencia de la BD, no se reinicia por año).",
+    example: 412,
+  })
+  requestNumber: number;
+
+  @ApiProperty({
+    description:
+      "Folio legible `SOL-AAAA-NNNN`: año de `createdAt` en hora de Caracas y `requestNumber` con al menos 4 dígitos.",
+    example: "SOL-2026-0412",
+  })
+  folio: string;
 
   @ApiProperty()
   legalName: string;
@@ -80,6 +96,11 @@ export class CompanyRegistrationRequestResponseDto {
   ): CompanyRegistrationRequestResponseDto {
     const dto = new CompanyRegistrationRequestResponseDto();
     dto.id = entity.id;
+    dto.requestNumber = entity.requestNumber;
+    dto.folio = formatRegistrationRequestFolio(
+      caracasYear(entity.createdAt),
+      entity.requestNumber,
+    );
     dto.legalName = entity.legalName;
     dto.taxId = entity.taxId;
     dto.contactName = entity.contactName;

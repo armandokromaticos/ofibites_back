@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -34,6 +35,7 @@ export class UpdateCompanyMemberUseCase {
     companyId: string,
     id: string,
     dto: UpdateCompanyMemberDto,
+    actorUserId: string,
   ): Promise<CompanyMemberEntity> {
     const hasUpdates = Object.values(dto).some((value) => value !== undefined);
     if (!hasUpdates) {
@@ -45,6 +47,12 @@ export class UpdateCompanyMemberUseCase {
       throw new NotFoundException(
         `Member ${id} not found in company ${companyId}`,
       );
+    }
+
+    // Un usuario no puede desactivar su propia membresía: el login de CLIENT
+    // exige membresía activa y se quedaría fuera de la empresa.
+    if (dto.isActive === false && existing.userId === actorUserId) {
+      throw new ForbiddenException("No puedes desactivar tu propia cuenta.");
     }
 
     // Solo validamos cuando viene un id no-null (string vacío sería un input inválido,
