@@ -35,6 +35,8 @@ export interface CreateCompanyRegistrationRequestParams {
 
 export class CompanyRegistrationRequestEntity {
   id: string;
+  /** Correlativo global de la BD (base del folio `SOL-AAAA-NNNN`); 0 si aún no se persistió. */
+  requestNumber: number;
   legalName: string;
   taxId: string;
   contactName: string;
@@ -61,6 +63,7 @@ export class CompanyRegistrationRequestEntity {
   ): CompanyRegistrationRequestEntity {
     const entity = new CompanyRegistrationRequestEntity();
     entity.id = prisma.id;
+    entity.requestNumber = prisma.requestNumber;
     entity.legalName = prisma.legalName;
     entity.taxId = prisma.taxId;
     entity.contactName = prisma.contactName;
@@ -114,6 +117,7 @@ export class CompanyRegistrationRequestEntity {
   ): CompanyRegistrationRequestEntity {
     const entity = new CompanyRegistrationRequestEntity();
     entity.id = "";
+    entity.requestNumber = 0;
     entity.legalName = params.legalName.trim();
     entity.taxId = params.taxId.trim();
     entity.contactName = params.contactName.trim();
