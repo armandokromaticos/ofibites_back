@@ -12,6 +12,15 @@ export class MembershipDto {
   @ApiProperty()
   companyIsActive: boolean;
 
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    format: "date-time",
+    description:
+      "Fecha en que la empresa completó el onboarding. null = pendiente (el COMPANY_ADMIN debe pasar por /onboarding).",
+  })
+  onboardingCompletedAt: string | null;
+
   @ApiProperty({ enum: CompanyRole })
   role: CompanyRole;
 

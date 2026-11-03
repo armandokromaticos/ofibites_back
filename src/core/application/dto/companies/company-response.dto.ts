@@ -41,6 +41,15 @@ export class CompanyResponseDto {
   @ApiProperty()
   isActive: boolean;
 
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    format: "date-time",
+    description:
+      "Fecha en que el COMPANY_ADMIN completó el onboarding. null = pendiente.",
+  })
+  onboardingCompletedAt: string | null;
+
   @ApiProperty()
   createdAt: Date;
 
@@ -58,6 +67,8 @@ export class CompanyResponseDto {
     dto.fiscalAddress = entity.fiscalAddress;
     dto.creditDays = entity.creditDays;
     dto.isActive = entity.isActive;
+    dto.onboardingCompletedAt =
+      entity.onboardingCompletedAt?.toISOString() ?? null;
     dto.createdAt = entity.createdAt;
     dto.updatedAt = entity.updatedAt;
     return dto;

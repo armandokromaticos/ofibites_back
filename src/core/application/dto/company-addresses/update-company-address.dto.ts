@@ -1,11 +1,13 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsBoolean,
+  IsEnum,
   IsNotEmpty,
   IsOptional,
   IsString,
   MaxLength,
 } from "class-validator";
+import { CompanyAddressType } from "../../../domain/enums/company-address-type.enum";
 
 export class UpdateCompanyAddressDto {
   @ApiPropertyOptional()
@@ -94,4 +96,15 @@ export class UpdateCompanyAddressDto {
   @IsOptional()
   @IsBoolean()
   isPrimary?: boolean;
+
+  @ApiPropertyOptional({
+    enum: CompanyAddressType,
+    nullable: true,
+    description: "Tipo de sede (onboarding). Opcional; null lo borra.",
+  })
+  @IsOptional()
+  @IsEnum(CompanyAddressType, {
+    message: "type debe ser OFFICE, WAREHOUSE u OTHER",
+  })
+  type?: CompanyAddressType | null;
 }

@@ -4,6 +4,7 @@ import type { ICompanyAddressRepository } from "../../../domain/repositories/com
 import type { ICompanyRepository } from "../../../domain/repositories/company.repository.interface";
 import { CompanyAddressEntity } from "../../../domain/entities/company-address.entity";
 import { CreateCompanyAddressDto } from "../../dto/company-addresses/create-company-address.dto";
+import { CompanyAddressType } from "../../../domain/enums/company-address-type.enum";
 
 describe("CreateCompanyAddressUseCase", () => {
   const companyId = "11111111-1111-1111-1111-111111111111";
@@ -94,6 +95,22 @@ describe("CreateCompanyAddressUseCase", () => {
     expect(result.contactName).toBe("María Pérez");
     expect(result.contactPhone).toBe("+58 412-555-1234");
     expect(result.isPrimary).toBe(false);
+  });
+
+  it("type es opcional: sin él la sede se crea con type null y con él lo guarda", async () => {
+    create.mockImplementation((entity: CompanyAddressEntity) =>
+      Promise.resolve(entity),
+    );
+
+    const sinTipo = await useCase.execute(companyId, baseDto);
+    expect(sinTipo.type).toBeNull();
+
+    const conTipo = await useCase.execute(companyId, {
+      ...baseDto,
+      type: CompanyAddressType.WAREHOUSE,
+    });
+    expect(conTipo.type).toBe(CompanyAddressType.WAREHOUSE);
+    expect(conTipo.toPrismaCreate().type).toBe(CompanyAddressType.WAREHOUSE);
   });
 
   it("isPrimary=true crea y desmarca cualquier otra dirección primaria de la empresa", async () => {

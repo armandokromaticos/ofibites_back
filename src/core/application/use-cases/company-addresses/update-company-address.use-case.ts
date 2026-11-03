@@ -64,6 +64,7 @@ export class UpdateCompanyAddressUseCase {
       data.contactPhone = dto.contactPhone.trim();
     }
     if (dto.isShipping !== undefined) data.isShipping = dto.isShipping;
+    if (dto.type !== undefined) data.type = dto.type;
     if (dto.isBilling === false) data.isBilling = false;
     if (dto.isPrimary === false) data.isPrimary = false;
     // isBilling=true / isPrimary=true se aplican después con setSingle* para cumplir el invariante

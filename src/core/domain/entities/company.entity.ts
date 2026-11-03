@@ -21,6 +21,8 @@ export class CompanyEntity {
   fiscalAddress: string | null;
   creditDays: number;
   isActive: boolean;
+  /** T-34a: null = onboarding del cliente pendiente. */
+  onboardingCompletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 
@@ -35,6 +37,7 @@ export class CompanyEntity {
     entity.fiscalAddress = prisma.fiscalAddress;
     entity.creditDays = prisma.creditDays;
     entity.isActive = prisma.isActive;
+    entity.onboardingCompletedAt = prisma.onboardingCompletedAt;
     entity.createdAt = prisma.createdAt;
     entity.updatedAt = prisma.updatedAt;
     return entity;
@@ -51,6 +54,9 @@ export class CompanyEntity {
     entity.fiscalAddress = params.fiscalAddress?.trim() || null;
     entity.creditDays = params.creditDays ?? 0;
     entity.isActive = params.isActive ?? true;
+    // Toda empresa nueva (aprobación de solicitud o alta manual) nace con el
+    // onboarding pendiente.
+    entity.onboardingCompletedAt = null;
     entity.createdAt = new Date();
     entity.updatedAt = new Date();
     return entity;
@@ -66,6 +72,19 @@ export class CompanyEntity {
       fiscalAddress: this.fiscalAddress,
       creditDays: this.creditDays,
       isActive: this.isActive,
+      onboardingCompletedAt: this.onboardingCompletedAt,
     };
+  }
+
+  /** Faltantes para completar el onboarding (mensajes para el cliente). */
+  getOnboardingMissingRequirements(addressCount: number): string[] {
+    const missing: string[] = [];
+    if (!this.fiscalAddress || this.fiscalAddress.trim().length === 0) {
+      missing.push("la dirección fiscal de la empresa");
+    }
+    if (addressCount < 1) {
+      missing.push("al menos una sede");
+    }
+    return missing;
   }
 }

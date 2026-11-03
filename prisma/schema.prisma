@@ -394,18 +394,27 @@ enum CompanyRole {
   COMPANY_APPROVER
 }
 
+enum CompanyAddressType {
+  OFFICE
+  WAREHOUSE
+  OTHER
+}
+
 model Company {
-  id            String   @id @default(uuid())
-  legalName     String   @map("legal_name")
-  taxId         String   @unique @map("tax_id")
-  email         String?
-  phone         String?
-  fiscalName    String?  @map("fiscal_name")
-  fiscalAddress String?  @map("fiscal_address")
-  creditDays    Int      @default(0) @map("credit_days")
-  isActive      Boolean  @default(true) @map("is_active")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id                    String    @id @default(uuid())
+  legalName             String    @map("legal_name")
+  taxId                 String    @unique @map("tax_id")
+  email                 String?
+  phone                 String?
+  fiscalName            String?   @map("fiscal_name")
+  fiscalAddress         String?   @map("fiscal_address")
+  creditDays            Int       @default(0) @map("credit_days")
+  isActive              Boolean   @default(true) @map("is_active")
+  // T-34a: onboarding del cliente. null = el COMPANY_ADMIN aún no lo completó
+  // (las empresas existentes se marcaron completadas en la migración).
+  onboardingCompletedAt DateTime? @map("onboarding_completed_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
   branches            Branch[]
   departments         Department[]
@@ -456,8 +465,8 @@ model Department {
 }
 
 model CompanyAddress {
-  id           String   @id @default(uuid())
-  companyId    String   @map("company_id")
+  id           String              @id @default(uuid())
+  companyId    String              @map("company_id")
   label        String
   line1        String
   line2        String?
@@ -466,16 +475,19 @@ model CompanyAddress {
   state        String?
   country      String
   zip          String?
-  isBilling    Boolean  @default(false) @map("is_billing")
-  isShipping   Boolean  @default(true) @map("is_shipping")
+  isBilling    Boolean             @default(false) @map("is_billing")
+  isShipping   Boolean             @default(true) @map("is_shipping")
   // T-31a: "Direcciones y sedes" de Mi perfil. Requeridos al crear por el DTO
   // (no en BD, para no romper filas existentes); isPrimary sigue el mismo
   // patrón de invariante "uno solo por empresa" que isBilling.
-  contactName  String?  @map("contact_name")
-  contactPhone String?  @map("contact_phone")
-  isPrimary    Boolean  @default(false) @map("is_primary")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  contactName  String?             @map("contact_name")
+  contactPhone String?             @map("contact_phone")
+  isPrimary    Boolean             @default(false) @map("is_primary")
+  // T-34a: tipo de sede del onboarding. Nullable para no romper filas
+  // existentes ni el formulario de T-31 (opcional en los DTOs).
+  type         CompanyAddressType?
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   orders  Order[]
