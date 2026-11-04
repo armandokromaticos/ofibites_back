@@ -7,6 +7,7 @@ import {
 } from "./order-status-notification.service";
 import { UpdateOrderStatusUseCase } from "../use-cases/orders/update-order-status.use-case";
 import { CancelOrderUseCase } from "../use-cases/orders/cancel-order.use-case";
+import type { InvoiceNotificationService } from "./invoice-notification.service";
 import type { INotificationRepository } from "../../domain/repositories/notification.repository.interface";
 import type { IOrderRepository } from "../../domain/repositories/order.repository.interface";
 import { NotificationEntity } from "../../domain/entities/notification.entity";
@@ -219,6 +220,7 @@ describe("OrderStatusNotificationService", () => {
       link: `/pedidos/${ORDER_ID}`,
       orderId: ORDER_ID,
       orderStatus: OrderStatus.IN_TRANSIT,
+      invoiceId: null,
     });
   });
 
@@ -262,6 +264,12 @@ describe("OrderStatusNotificationService", () => {
   });
 });
 
+function invoiceNotificationsStub(): InvoiceNotificationService {
+  return {
+    notifyInvoiceGenerated: jest.fn(() => Promise.resolve()),
+  } as unknown as InvoiceNotificationService;
+}
+
 describe("generación al transicionar el pedido", () => {
   function orderRepo(from: OrderStatus, to: OrderStatus) {
     return {
@@ -281,6 +289,7 @@ describe("generación al transicionar el pedido", () => {
       new OrderStatusNotificationService(
         notifications as unknown as INotificationRepository,
       ),
+      invoiceNotificationsStub(),
     );
 
     const result = await useCase.execute(
@@ -304,6 +313,7 @@ describe("generación al transicionar el pedido", () => {
       new OrderStatusNotificationService(
         notifications as unknown as INotificationRepository,
       ),
+      invoiceNotificationsStub(),
     );
 
     await useCase.execute(ORDER_ID, OrderStatus.IN_PREPARATION);
@@ -319,6 +329,7 @@ describe("generación al transicionar el pedido", () => {
       new OrderStatusNotificationService(
         notificationRepo(true) as unknown as INotificationRepository,
       ),
+      invoiceNotificationsStub(),
     );
 
     const result = await useCase.execute(
@@ -331,6 +342,7 @@ describe("generación al transicionar el pedido", () => {
     expect(orders.updateStatus).toHaveBeenCalledWith(
       ORDER_ID,
       OrderStatus.DELIVERED,
+      OrderStatus.IN_TRANSIT,
     );
   });
 
@@ -342,6 +354,7 @@ describe("generación al transicionar el pedido", () => {
       new OrderStatusNotificationService(
         notifications as unknown as INotificationRepository,
       ),
+      invoiceNotificationsStub(),
     );
 
     await expect(

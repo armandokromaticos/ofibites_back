@@ -40,6 +40,14 @@ export class NotificationResponseDto {
   })
   orderStatus: OrderStatus | null;
 
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    description:
+      "Factura relacionada (INVOICE_GENERATED, PAYMENT_STATUS_CHANGED).",
+  })
+  invoiceId: string | null;
+
   @ApiProperty({ nullable: true, type: String })
   companyId: string | null;
 

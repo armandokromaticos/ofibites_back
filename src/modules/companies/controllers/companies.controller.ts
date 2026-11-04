@@ -80,13 +80,15 @@ export class CompaniesController {
   }
 
   @Patch(":id")
-  @Roles(Role.SUPER_ADMIN, Role.OPS_ADMIN)
+  // T-06: FINANCE_ADMIN también (edita el cupo de crédito, creditLimit).
+  @Roles(Role.SUPER_ADMIN, Role.OPS_ADMIN, Role.FINANCE_ADMIN)
   @ApiOperation({ summary: "Actualizar empresa" })
   async update(
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: UpdateCompanyDto,
+    @CurrentUser() user: { id: string; role: Role },
   ): Promise<CompanyResponseDto> {
-    const company = await this.updateCompanyUseCase.execute(id, dto);
+    const company = await this.updateCompanyUseCase.execute(id, dto, user.role);
     return CompanyResponseDto.fromEntity(company);
   }
 

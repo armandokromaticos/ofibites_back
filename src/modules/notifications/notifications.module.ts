@@ -4,6 +4,7 @@ import { NotificationsController } from "./controllers/notifications.controller"
 import { NOTIFICATION_REPOSITORY } from "../../core/domain/repositories/notification.repository.interface";
 import { NotificationRepository } from "../../core/infrastructure/repositories/notification.repository";
 import { OrderStatusNotificationService } from "../../core/application/services/order-status-notification.service";
+import { InvoiceNotificationService } from "../../core/application/services/invoice-notification.service";
 import { GetNotificationsUseCase } from "../../core/application/use-cases/notifications/get-notifications.use-case";
 import { MarkNotificationReadUseCase } from "../../core/application/use-cases/notifications/mark-notification-read.use-case";
 import { MarkAllNotificationsReadUseCase } from "../../core/application/use-cases/notifications/mark-all-notifications-read.use-case";
@@ -14,11 +15,13 @@ import { MarkAllNotificationsReadUseCase } from "../../core/application/use-case
   providers: [
     { provide: NOTIFICATION_REPOSITORY, useClass: NotificationRepository },
     OrderStatusNotificationService,
+    InvoiceNotificationService,
     GetNotificationsUseCase,
     MarkNotificationReadUseCase,
     MarkAllNotificationsReadUseCase,
   ],
   // OrdersModule lo importa para generar notificaciones al cambiar de estado.
-  exports: [OrderStatusNotificationService],
+  // InvoicesModule lo importa para avisar de facturas y pagos (T-06).
+  exports: [OrderStatusNotificationService, InvoiceNotificationService],
 })
 export class NotificationsModule {}

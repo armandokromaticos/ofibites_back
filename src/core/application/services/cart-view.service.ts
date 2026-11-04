@@ -15,6 +15,15 @@ import {
   CartResponseDto,
 } from "../dto/cart/cart-response.dto";
 import { buildOrderSummaryWithCoupon } from "../shared/order-summary.config";
+import {
+  CompanyBillingService,
+  toCreditLineDto,
+} from "./company-billing.service";
+import {
+  exceedsCreditLine,
+  InvoiceAlert,
+} from "../../domain/services/invoice-rules";
+import { CartInvoiceAlertDto } from "../dto/cart/cart-response.dto";
 
 interface AppliedCoupon {
   coupon: CouponEntity;
@@ -38,6 +47,7 @@ export class CartViewService {
     private readonly lineItemPricingService: LineItemPricingService,
     @Inject(COUPON_REPOSITORY)
     private readonly couponRepository: ICouponRepository,
+    private readonly companyBilling: CompanyBillingService,
   ) {}
 
   async build(
@@ -73,7 +83,7 @@ export class CartViewService {
     userId: string,
     lang: Lang,
   ): Promise<CartResponseDto> {
-    const [pricedItems, applied] = await Promise.all([
+    const [pricedItems, applied, billing] = await Promise.all([
       this.lineItemPricingService.priceLines(
         cart.items.map((item) => ({
           productId: item.productId,
@@ -84,6 +94,7 @@ export class CartViewService {
         })),
       ),
       this.resolveCoupon(cart, userId),
+      this.companyBilling.getStatus(cart.companyId),
     ]);
 
     const items: CartItemResponseDto[] = [];
@@ -133,6 +144,16 @@ export class CartViewService {
       applied?.isValid ? applied.coupon : null,
     );
     dto.coupon = applied ? toCouponDto(applied) : null;
+    dto.invoiceAlert = billing.alert ? toInvoiceAlertDto(billing.alert) : null;
+    dto.creditLine = billing.creditLine
+      ? {
+          ...toCreditLineDto(billing.creditLine),
+          exceedsAvailable: exceedsCreditLine(
+            billing.creditLine,
+            dto.summary.total,
+          ),
+        }
+      : null;
     // Mismo valor que summary.subtotal (sumado en céntimos).
     dto.subtotal = dto.summary.subtotal;
     dto.totalUnits = totalUnits;
@@ -150,5 +171,17 @@ function toCouponDto({
   dto.code = coupon.nameEs;
   dto.discountPercent = coupon.discountPercent;
   dto.isValid = isValid;
+  return dto;
+}
+
+function toInvoiceAlertDto(alert: InvoiceAlert): CartInvoiceAlertDto {
+  const dto = new CartInvoiceAlertDto();
+  dto.level = alert.level;
+  dto.blocksCheckout = alert.blocksCheckout;
+  dto.count = alert.count;
+  dto.invoice = {
+    ...alert.invoice,
+    dueDate: alert.invoice.dueDate.toISOString(),
+  };
   return dto;
 }

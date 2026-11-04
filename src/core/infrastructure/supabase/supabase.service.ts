@@ -62,6 +62,41 @@ export class SupabaseService {
     return this.getPublicUrl(bucket, path);
   }
 
+  /**
+   * Sube a un bucket **privado** sin sobrescribir y devuelve la ruta (no hay
+   * URL pública: el archivo se sirve a través del back con `downloadFile`).
+   * T-06: buckets `invoices` y `payment-proofs`.
+   */
+  async uploadPrivateFile(
+    bucket: string,
+    path: string,
+    file: Buffer,
+    contentType: string,
+  ): Promise<string> {
+    const { error } = await this.client.storage
+      .from(bucket)
+      .upload(path, file, { contentType, upsert: false });
+    if (error) {
+      throw new Error(
+        `Failed to upload file to ${bucket}/${path}: ${error.message}`,
+      );
+    }
+    return path;
+  }
+
+  /** Descarga un archivo (con la service role; vale para buckets privados). */
+  async downloadFile(bucket: string, path: string): Promise<Buffer> {
+    const { data, error } = await this.client.storage
+      .from(bucket)
+      .download(path);
+    if (error || !data) {
+      throw new Error(
+        `Failed to download file from ${bucket}/${path}: ${error?.message ?? "sin datos"}`,
+      );
+    }
+    return Buffer.from(await data.arrayBuffer());
+  }
+
   getPublicUrl(bucket: string, path: string): string {
     const { data } = this.client.storage.from(bucket).getPublicUrl(path);
     return data.publicUrl;

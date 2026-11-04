@@ -30,6 +30,9 @@ import { COUPON_REPOSITORY } from "../../core/domain/repositories/coupon.reposit
 import { CouponRepository } from "../../core/infrastructure/repositories/coupon.repository";
 import { ApplyCartCouponUseCase } from "../../core/application/use-cases/cart/apply-cart-coupon.use-case";
 import { RemoveCartCouponUseCase } from "../../core/application/use-cases/cart/remove-cart-coupon.use-case";
+import { INVOICE_REPOSITORY } from "../../core/domain/repositories/invoice.repository.interface";
+import { InvoiceRepository } from "../../core/infrastructure/repositories/invoice.repository";
+import { CompanyBillingService } from "../../core/application/services/company-billing.service";
 
 @Module({
   imports: [AuthModule],
@@ -51,6 +54,8 @@ import { RemoveCartCouponUseCase } from "../../core/application/use-cases/cart/r
     // COMPANY_MEMBER_REPOSITORY lo exporta AuthModule.
     { provide: ORDER_REPOSITORY, useClass: OrderRepository },
     { provide: COUPON_REPOSITORY, useClass: CouponRepository },
+    { provide: INVOICE_REPOSITORY, useClass: InvoiceRepository },
+    CompanyBillingService,
     LineItemPricingService,
     LineItemAvailabilityService,
     CartViewService,

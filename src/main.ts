@@ -24,10 +24,12 @@ async function bootstrap() {
   const corsOrigins = process.env.CORS_ORIGIN?.split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
+  // T-06b: el front puede leer el nombre del archivo y si el PDF es fiscal.
+  const exposedHeaders = ["Content-Disposition", "X-Invoice-Document"];
   app.enableCors(
     process.env.NODE_ENV === "production"
-      ? { origin: corsOrigins, credentials: true }
-      : undefined,
+      ? { origin: corsOrigins, credentials: true, exposedHeaders }
+      : { exposedHeaders },
   );
 
   // Swagger

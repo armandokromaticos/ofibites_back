@@ -3,6 +3,7 @@ import {
   IsBoolean,
   IsEmail,
   IsInt,
+  IsNumber,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -66,6 +67,31 @@ export class CreateCompanyDto {
   @Min(0)
   @Max(180)
   creditDays?: number;
+
+  @ApiPropertyOptional({
+    example: 8000,
+    nullable: true,
+    description:
+      "T-06: cupo de la línea de crédito en USD (solo aplica con creditDays > 0). null = sin tope.",
+    minimum: 0,
+  })
+  @ValidateIf(
+    (dto: CreateCompanyDto) =>
+      dto.creditLimit !== undefined && dto.creditLimit !== null,
+  )
+  @IsNumber(
+    { maxDecimalPlaces: 2, allowNaN: false, allowInfinity: false },
+    {
+      message:
+        "creditLimit debe ser un número mayor o igual que 0 con hasta 2 decimales",
+    },
+  )
+  @Min(0, {
+    message:
+      "creditLimit debe ser un número mayor o igual que 0 con hasta 2 decimales",
+  })
+  @Max(99999999.99)
+  creditLimit?: number | null;
 
   @ApiPropertyOptional({ example: true })
   @IsOptional()

@@ -22,6 +22,7 @@ export class CreateCompanyUseCase {
       fiscalName: dto.fiscalName ?? null,
       fiscalAddress: dto.fiscalAddress ?? null,
       creditDays: dto.creditDays,
+      creditLimit: dto.creditLimit ?? null,
       isActive: dto.isActive,
     });
 

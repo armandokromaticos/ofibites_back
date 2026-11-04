@@ -23,6 +23,10 @@ import type { ICouponRepository } from "../../../domain/repositories/coupon.repo
 import { CouponEntity } from "../../../domain/entities/coupon.entity";
 import { CouponType } from "../../../domain/enums/coupon-type.enum";
 import { CouponUnavailableException } from "../../../domain/exceptions/coupon-unavailable.exception";
+import { CompanyBillingService } from "../../services/company-billing.service";
+import type { IInvoiceRepository } from "../../../domain/repositories/invoice.repository.interface";
+import { InvoiceEntity } from "../../../domain/entities/invoice.entity";
+import { invoice, paymentRow } from "../../../testing/invoice-fixtures";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -140,6 +144,10 @@ function setup(
     /** Cupón aplicado al carrito (lo que devuelve el repositorio de cupones). */
     coupon?: CouponEntity | null;
     couponId?: string | null;
+    /** Facturas PENDING de la empresa (T-06). */
+    openInvoices?: InvoiceEntity[];
+    /** Condición de pago de la empresa (T-06). */
+    company?: { creditDays: number; creditLimit: number | null };
   } = {},
 ) {
   const items = options.items ?? [
@@ -208,19 +216,37 @@ function setup(
       ),
     ),
   };
+  const companyRepository = {
+    findUnique: jest.fn(() =>
+      Promise.resolve({
+        isActive: true,
+        creditDays: 0,
+        creditLimit: null,
+        ...options.company,
+      }),
+    ),
+  } as unknown as ICompanyRepository;
+  const invoiceRepository = {
+    findOpenByCompany: jest.fn(() =>
+      Promise.resolve(options.openInvoices ?? []),
+    ),
+  };
   const useCase = new CheckoutOrderUseCase(
     orderRepository as unknown as IOrderRepository,
     cartRepository as unknown as ICartRepository,
-    {
-      findUnique: jest.fn(() => Promise.resolve({ isActive: true })),
-    } as unknown as ICompanyRepository,
+    companyRepository,
     addressRepository as unknown as ICompanyAddressRepository,
     pricing as unknown as LineItemPricingService,
     availability as unknown as LineItemAvailabilityService,
     couponRepository as unknown as ICouponRepository,
+    new CompanyBillingService(
+      invoiceRepository as unknown as IInvoiceRepository,
+      companyRepository,
+    ),
   );
   return {
     useCase,
+    invoiceRepository,
     orderRepository,
     cartRepository,
     pricing,
@@ -775,6 +801,86 @@ describe("CheckoutOrderUseCase", () => {
       const { useCase, couponRepository } = setup();
       await useCase.execute(COMPANY, ACTOR, dto(), NOW);
       expect(couponRepository.findWithUserUsages).not.toHaveBeenCalled();
+    });
+  });
+  describe("facturas (T-06)", () => {
+    it("factura vencida → 400 INVOICE_OVERDUE con la lista, sin crear", async () => {
+      const { useCase, orderRepository } = setup({
+        openInvoices: [
+          invoice({
+            id: "inv-old",
+            dueDate: new Date("2026-10-15T00:00:00.000Z"),
+            total: 340,
+          }),
+        ],
+      });
+      const error = await useCase
+        .execute(COMPANY, ACTOR, dto(), NOW)
+        .catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(BadRequestException);
+      expect((error as HttpException).getResponse()).toMatchObject({
+        code: "INVOICE_OVERDUE",
+        overdueInvoices: [
+          expect.objectContaining({ id: "inv-old", balance: 340 }),
+        ],
+      });
+      expect(orderRepository.createFromCart).not.toHaveBeenCalled();
+    });
+
+    it("con un comprobante en revisión la vencida sigue bloqueando", async () => {
+      const { useCase } = setup({
+        openInvoices: [
+          invoice({
+            dueDate: new Date("2026-10-15T00:00:00.000Z"),
+            payments: [paymentRow()],
+          }),
+        ],
+      });
+      await expect(
+        useCase.execute(COMPANY, ACTOR, dto(), NOW),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("una factura que vence hoy (Caracas) no bloquea", async () => {
+      const { useCase, orderRepository } = setup({
+        openInvoices: [
+          invoice({ dueDate: new Date("2026-10-16T00:00:00.000Z") }),
+        ],
+      });
+      await useCase.execute(COMPANY, ACTOR, dto(), NOW);
+      expect(orderRepository.createFromCart).toHaveBeenCalledTimes(1);
+    });
+
+    it("crédito con tope: total por encima del disponible → 400 CREDIT_LIMIT_EXCEEDED", async () => {
+      // Pedido de 135,5; cupo 200 − comprometido 100 = 100 disponible.
+      const { useCase, orderRepository } = setup({
+        company: { creditDays: 30, creditLimit: 200 },
+        openInvoices: [invoice({ total: 100 })],
+      });
+      const error = await useCase
+        .execute(COMPANY, ACTOR, dto(), NOW)
+        .catch((e: unknown) => e);
+      expect((error as HttpException).getResponse()).toMatchObject({
+        code: "CREDIT_LIMIT_EXCEEDED",
+        total: 135.5,
+        available: 100,
+      });
+      expect(orderRepository.createFromCart).not.toHaveBeenCalled();
+    });
+
+    it("crédito con disponible suficiente, sin tope o contado → crea el pedido", async () => {
+      for (const company of [
+        { creditDays: 30, creditLimit: 1000 },
+        { creditDays: 30, creditLimit: null },
+        { creditDays: 0, creditLimit: 10 },
+      ]) {
+        const { useCase, orderRepository } = setup({
+          company,
+          openInvoices: [invoice({ total: 100 })],
+        });
+        await useCase.execute(COMPANY, ACTOR, dto(), NOW);
+        expect(orderRepository.createFromCart).toHaveBeenCalledTimes(1);
+      }
     });
   });
 });

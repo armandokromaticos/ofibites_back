@@ -8,6 +8,8 @@ export interface CreateCompanyParams {
   fiscalName?: string | null;
   fiscalAddress?: string | null;
   creditDays?: number;
+  /** T-06: cupo en USD; null = sin tope. */
+  creditLimit?: number | null;
   isActive?: boolean;
 }
 
@@ -20,6 +22,8 @@ export class CompanyEntity {
   fiscalName: string | null;
   fiscalAddress: string | null;
   creditDays: number;
+  /** T-06: cupo de la línea de crédito en USD; null = sin tope. */
+  creditLimit: number | null;
   isActive: boolean;
   /** T-34a: null = onboarding del cliente pendiente. */
   onboardingCompletedAt: Date | null;
@@ -36,6 +40,10 @@ export class CompanyEntity {
     entity.fiscalName = prisma.fiscalName;
     entity.fiscalAddress = prisma.fiscalAddress;
     entity.creditDays = prisma.creditDays;
+    entity.creditLimit =
+      prisma.creditLimit === null || prisma.creditLimit === undefined
+        ? null
+        : Number(prisma.creditLimit);
     entity.isActive = prisma.isActive;
     entity.onboardingCompletedAt = prisma.onboardingCompletedAt;
     entity.createdAt = prisma.createdAt;
@@ -53,6 +61,7 @@ export class CompanyEntity {
     entity.fiscalName = params.fiscalName?.trim() || null;
     entity.fiscalAddress = params.fiscalAddress?.trim() || null;
     entity.creditDays = params.creditDays ?? 0;
+    entity.creditLimit = params.creditLimit ?? null;
     entity.isActive = params.isActive ?? true;
     // Toda empresa nueva (aprobación de solicitud o alta manual) nace con el
     // onboarding pendiente.
@@ -71,6 +80,8 @@ export class CompanyEntity {
       fiscalName: this.fiscalName,
       fiscalAddress: this.fiscalAddress,
       creditDays: this.creditDays,
+      creditLimit:
+        this.creditLimit === null ? null : new Prisma.Decimal(this.creditLimit),
       isActive: this.isActive,
       onboardingCompletedAt: this.onboardingCompletedAt,
     };

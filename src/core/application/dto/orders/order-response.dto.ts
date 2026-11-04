@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { OrderInvoiceResponseDto } from "../invoices/invoice-response.dto";
 import { OrderPriority } from "../../../domain/enums/order-priority.enum";
 import { OrderStatusGroup } from "../../../domain/services/order-status-groups";
 
@@ -172,6 +173,14 @@ export class OrderResponseDto {
 
   @ApiPropertyOptional({ type: () => [OrderItemResponseDto] })
   items?: OrderItemResponseDto[];
+
+  @ApiProperty({
+    type: () => OrderInvoiceResponseDto,
+    nullable: true,
+    description:
+      "Factura del pedido (T-06). null si aún no se confirmó, si no tiene factura o para OPERATOR",
+  })
+  invoice: OrderInvoiceResponseDto | null;
 }
 
 /**

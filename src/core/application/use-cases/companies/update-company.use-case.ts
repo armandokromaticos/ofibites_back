@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -11,6 +12,10 @@ import { COMPANY_REPOSITORY } from "../../../domain/repositories/company.reposit
 import { UpdateCompanyDto } from "../../dto/companies/update-company.dto";
 import { CompanyEntity } from "../../../domain/entities/company.entity";
 import { describeUniqueTarget } from "../../shared/prisma-error.util";
+import { Role } from "../../../domain/enums/role.enum";
+
+export const FINANCE_ADMIN_ONLY_CREDIT_LIMIT_MESSAGE =
+  "Con el rol de finanzas solo puedes cambiar el cupo de crédito (creditLimit) de la empresa";
 
 @Injectable()
 export class UpdateCompanyUseCase {
@@ -19,10 +24,23 @@ export class UpdateCompanyUseCase {
     private readonly companyRepository: ICompanyRepository,
   ) {}
 
-  async execute(id: string, dto: UpdateCompanyDto): Promise<CompanyEntity> {
+  async execute(
+    id: string,
+    dto: UpdateCompanyDto,
+    actorRole?: Role,
+  ): Promise<CompanyEntity> {
     const hasUpdates = Object.values(dto).some((value) => value !== undefined);
     if (!hasUpdates) {
       throw new BadRequestException("No fields provided for update");
+    }
+    // T-06: FINANCE_ADMIN entra en PATCH /companies/:id solo por el cupo.
+    if (actorRole === Role.FINANCE_ADMIN) {
+      const others = Object.entries(dto).filter(
+        ([key, value]) => key !== "creditLimit" && value !== undefined,
+      );
+      if (others.length > 0) {
+        throw new ForbiddenException(FINANCE_ADMIN_ONLY_CREDIT_LIMIT_MESSAGE);
+      }
     }
 
     const existing = await this.companyRepository.findUnique({ where: { id } });
@@ -48,6 +66,10 @@ export class UpdateCompanyUseCase {
         : dto.fiscalAddress;
     }
     if (dto.creditDays !== undefined) data.creditDays = dto.creditDays;
+    if (dto.creditLimit !== undefined) {
+      data.creditLimit =
+        dto.creditLimit === null ? null : new Prisma.Decimal(dto.creditLimit);
+    }
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
 
     try {

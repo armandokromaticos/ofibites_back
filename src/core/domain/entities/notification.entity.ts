@@ -14,8 +14,20 @@ interface NotificationProps {
   link: string | null;
   orderId: string | null;
   orderStatus: OrderStatus | null;
+  invoiceId: string | null;
   readAt: Date | null;
   createdAt: Date;
+}
+
+export interface CreateInvoiceNotificationParams {
+  type:
+    | NotificationType.INVOICE_GENERATED
+    | NotificationType.PAYMENT_STATUS_CHANGED;
+  userId: string;
+  companyId: string;
+  orderId: string;
+  invoiceId: string;
+  message: string;
 }
 
 export interface CreateOrderStatusNotificationParams {
@@ -71,6 +83,9 @@ export class NotificationEntity {
   get orderStatus(): OrderStatus | null {
     return this.props.orderStatus;
   }
+  get invoiceId(): string | null {
+    return this.props.invoiceId;
+  }
   get readAt(): Date | null {
     return this.props.readAt;
   }
@@ -82,7 +97,10 @@ export class NotificationEntity {
   }
 
   static fromPrisma(
-    row: PrismaNotification & { order?: { orderNumber: string | null } | null },
+    row: Omit<PrismaNotification, "invoiceId"> & {
+      invoiceId?: string | null;
+      order?: { orderNumber: string | null } | null;
+    },
   ): NotificationEntity {
     return new NotificationEntity({
       id: row.id,
@@ -94,6 +112,7 @@ export class NotificationEntity {
       link: row.link,
       orderId: row.orderId,
       orderStatus: (row.orderStatus as OrderStatus | null) ?? null,
+      invoiceId: row.invoiceId ?? null,
       readAt: row.readAt,
       createdAt: row.createdAt,
     });
@@ -115,6 +134,30 @@ export class NotificationEntity {
       link: toOrderLink(params.orderId),
       orderId: params.orderId,
       orderStatus: params.orderStatus,
+      invoiceId: null,
+      readAt: null,
+      createdAt: new Date(),
+    });
+  }
+
+  /** T-06: factura emitida o comprobante revisado. `orderStatus` va null (T-06b, 4). */
+  static forInvoice(
+    params: CreateInvoiceNotificationParams,
+  ): NotificationEntity {
+    const message = params.message.trim();
+    if (message.length === 0) {
+      throw new Error("El mensaje de la notificación no puede estar vacío");
+    }
+    return new NotificationEntity({
+      id: undefined,
+      userId: params.userId,
+      companyId: params.companyId,
+      type: params.type,
+      message,
+      link: toOrderLink(params.orderId),
+      orderId: params.orderId,
+      orderStatus: null,
+      invoiceId: params.invoiceId,
       readAt: null,
       createdAt: new Date(),
     });
@@ -129,6 +172,7 @@ export class NotificationEntity {
       link: this.props.link,
       orderId: this.props.orderId,
       orderStatus: this.props.orderStatus,
+      invoiceId: this.props.invoiceId,
     };
   }
 
@@ -143,6 +187,7 @@ export class NotificationEntity {
       ? (this.props.orderNumber ?? toOrderNumber(this.props.orderId))
       : null;
     dto.orderStatus = this.props.orderStatus;
+    dto.invoiceId = this.props.invoiceId;
     dto.companyId = this.props.companyId;
     dto.readAt = this.props.readAt ? this.props.readAt.toISOString() : null;
     dto.createdAt = this.props.createdAt.toISOString();
