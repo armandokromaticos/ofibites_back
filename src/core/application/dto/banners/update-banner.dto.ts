@@ -1,4 +1,5 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
+import { Transform } from "class-transformer";
 import {
   IsString,
   IsInt,
@@ -7,13 +8,36 @@ import {
   IsBoolean,
   IsUrl,
   Min,
+  MaxLength,
 } from "class-validator";
+
+/** Recorta espacios; "" (o solo espacios) pasa a null. */
+const trimToNull = ({ value }: { value: unknown }): unknown => {
+  if (typeof value !== "string") {
+    return value;
+  }
+  const trimmed = value.trim();
+  return trimmed === "" ? null : trimmed;
+};
 
 export class UpdateBannerDto {
   @ApiPropertyOptional({ example: "Banner principal" })
   @IsOptional()
   @IsString()
   title?: string;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    example: "Ideal para reuniones de 4 a 15 personas",
+    maxLength: 160,
+    description: 'Subtítulo bajo el título del banner. null o "" lo borran.',
+  })
+  @Transform(trimToNull)
+  @IsOptional()
+  @IsString({ message: "subtitle debe ser texto" })
+  @MaxLength(160, { message: "subtitle admite como máximo 160 caracteres" })
+  subtitle?: string | null;
 
   @ApiPropertyOptional({
     example: "https://cdn.cantaritos.com/banners/banner1.png",

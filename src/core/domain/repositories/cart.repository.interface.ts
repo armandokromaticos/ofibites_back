@@ -39,6 +39,11 @@ export const CART_FULL_INCLUDE = {
           image: true,
           isActive: true,
           sizes: { where: { isActive: true }, select: { id: true } },
+          // Mismo criterio que el catálogo: solo tags activos.
+          tags: {
+            where: { tag: { isActive: true } },
+            select: { tag: { select: { nameEs: true, nameEn: true } } },
+          },
         },
       },
       productSize: {
@@ -95,5 +100,8 @@ export interface ICartRepository {
   // al sumar a una línea existente desde requests concurrentes.
   incrementItemQuantity(itemId: string, delta: number): Promise<void>;
   removeItem(itemId: string): Promise<void>;
+  /** Vacía las líneas y quita el cupón en una sola transacción. */
   clear(cartId: string): Promise<void>;
+  /** Guarda (o, con `null`, quita) el cupón aplicado al carrito. */
+  setCoupon(cartId: string, couponId: string | null): Promise<void>;
 }

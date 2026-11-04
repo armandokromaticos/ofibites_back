@@ -7,6 +7,13 @@ export class BannerResponseDto {
   @ApiProperty({ nullable: true })
   title: string | null;
 
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    example: "Ideal para reuniones de 4 a 15 personas",
+  })
+  subtitle: string | null;
+
   @ApiProperty({ nullable: true })
   imageUrl: string | null;
 

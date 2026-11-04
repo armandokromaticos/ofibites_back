@@ -7,7 +7,12 @@ import type { ICompanyRepository } from "../../../domain/repositories/company.re
 import { COMPANY_REPOSITORY } from "../../../domain/repositories/company.repository.interface";
 import type { ICompanyAddressRepository } from "../../../domain/repositories/company-address.repository.interface";
 import { COMPANY_ADDRESS_REPOSITORY } from "../../../domain/repositories/company-address.repository.interface";
-import { CartItemInfo } from "../../../domain/entities/cart.entity";
+import type { ICouponRepository } from "../../../domain/repositories/coupon.repository.interface";
+import { COUPON_REPOSITORY } from "../../../domain/repositories/coupon.repository.interface";
+import { CartEntity, CartItemInfo } from "../../../domain/entities/cart.entity";
+import { CouponEntity } from "../../../domain/entities/coupon.entity";
+import { CouponUnavailableException } from "../../../domain/exceptions/coupon-unavailable.exception";
+import { couponRejectionFor } from "../../../domain/services/coupon-eligibility";
 import { OrderEntity } from "../../../domain/entities/order.entity";
 import { CartChangedException } from "../../../domain/exceptions/cart-changed.exception";
 import { LineAvailabilityIssue } from "../../../domain/services/line-availability";
@@ -31,7 +36,7 @@ import {
   checkoutConflict,
   CheckoutErrorCode,
 } from "../../shared/checkout-errors";
-import { buildOrderSummary } from "../../shared/order-summary.config";
+import { buildOrderSummaryWithCoupon } from "../../shared/order-summary.config";
 import { toCents } from "../../../domain/services/order-summary";
 import { CheckoutOrderDto } from "../../dto/orders/checkout-order.dto";
 import { localized } from "../catalog/catalog-entry.mapper";
@@ -56,6 +61,9 @@ export const CHECKOUT_CART_CHANGED_MESSAGE =
 
 export const CHECKOUT_TOTAL_CHANGED_MESSAGE =
   "Los precios o el total del pedido cambiaron desde que lo revisaste. Revísalo y vuelve a confirmar";
+
+export const CHECKOUT_COUPON_INVALID_MESSAGE =
+  "El código aplicado ya no está vigente. Quítalo para continuar.";
 
 export const CHECKOUT_UNAVAILABLE_MESSAGE =
   "Algunos productos del carrito ya no están disponibles. Quítalos para confirmar el pedido";
@@ -90,6 +98,8 @@ export class CheckoutOrderUseCase {
     private readonly companyAddressRepository: ICompanyAddressRepository,
     private readonly lineItemPricingService: LineItemPricingService,
     private readonly lineItemAvailability: LineItemAvailabilityService,
+    @Inject(COUPON_REPOSITORY)
+    private readonly couponRepository: ICouponRepository,
   ) {}
 
   async execute(
@@ -142,7 +152,11 @@ export class CheckoutOrderUseCase {
         return quote.value;
       }),
     );
-    const summary = buildOrderSummary(items.map((item) => item.subtotal));
+    const coupon = await this.resolveCoupon(cart, actor.id);
+    const summary = buildOrderSummaryWithCoupon(
+      items.map((item) => item.subtotal),
+      coupon,
+    );
     // El usuario confirma lo que vio: si el total cambió (precios, tarifa de
     // envío), no se crea el pedido.
     if (
@@ -157,6 +171,7 @@ export class CheckoutOrderUseCase {
 
     const entity = OrderEntity.fromCreateDto({
       userId: actor.id,
+      couponId: coupon?.id,
       companyId,
       createdById: actor.id,
       deliveryAddressId: dto.deliveryAddressId,
@@ -183,8 +198,12 @@ export class CheckoutOrderUseCase {
           id: item.id,
           quantity: item.quantity,
         })),
+        couponId: cart.couponId,
       });
     } catch (error) {
+      if (error instanceof CouponUnavailableException) {
+        throw invalidCoupon();
+      }
       if (error instanceof CartChangedException) {
         throw checkoutConflict(
           CheckoutErrorCode.CART_CHANGED,
@@ -193,6 +212,26 @@ export class CheckoutOrderUseCase {
       }
       throw error;
     }
+  }
+
+  /**
+   * Cupón del carrito revalidado para quien confirma (mismas reglas que
+   * `POST /cart/coupon`). Si dejó de aplicar → 400 `COUPON_INVALID` sin crear
+   * el pedido; la transacción vuelve a comprobarlo al consumirlo.
+   */
+  private async resolveCoupon(
+    cart: CartEntity,
+    userId: string,
+  ): Promise<CouponEntity | null> {
+    if (!cart.couponId) return null;
+    const coupon = await this.couponRepository.findWithUserUsages(
+      { id: cart.couponId },
+      userId,
+    );
+    if (couponRejectionFor(coupon, { companyId: cart.companyId, userId })) {
+      throw invalidCoupon();
+    }
+    return coupon;
   }
 
   /** 404 si no existe o es de otra empresa (no se filtra cuál); 400 si no es de entrega. */
@@ -243,4 +282,11 @@ export class CheckoutOrderUseCase {
     }
     return result;
   }
+}
+
+function invalidCoupon() {
+  return checkoutBadRequest(
+    CheckoutErrorCode.COUPON_INVALID,
+    CHECKOUT_COUPON_INVALID_MESSAGE,
+  );
 }

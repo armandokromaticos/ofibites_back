@@ -22,6 +22,7 @@ type PrismaCartItemWithRelations = PrismaCartItem & {
     image: string | null;
     isActive: boolean;
     sizes?: { id: string }[];
+    tags?: { tag: { nameEs: string; nameEn: string | null } }[];
   } | null;
   productSize?: {
     productId: string;
@@ -43,6 +44,12 @@ type PrismaCartWithRelations = PrismaCart & {
   items?: PrismaCartItemWithRelations[];
 };
 
+/** Nombre bilingüe de una etiqueta del producto de la línea. */
+export interface CartItemTagName {
+  nameEs: string;
+  nameEn: string | null;
+}
+
 /** Datos de presentación de una línea (nombre bilingüe, imagen, tamaño). */
 export interface CartItemDisplay {
   nameEs: string;
@@ -52,6 +59,8 @@ export interface CartItemDisplay {
   sizeNameEn: string | null;
   servings: number | null;
   isAvailable: boolean;
+  /** Tags activos del producto; `[]` en combos (Combo no tiene tags). */
+  tags: CartItemTagName[];
 }
 
 export interface CartItemInfo {
@@ -68,6 +77,8 @@ export interface CartItemInfo {
 interface CartProps {
   id: string;
   companyId: string;
+  /** Cupón aplicado (`POST /cart/coupon`); ausente = sin cupón. */
+  couponId?: string | null;
   items: CartItemInfo[];
   createdAt: Date;
   updatedAt: Date;
@@ -168,6 +179,12 @@ function toDisplay(
     sizeNameEn: item.productSize?.nameEn ?? null,
     servings: item.productSize?.servings ?? null,
     isAvailable: isCartItemAvailable(item),
+    tags: item.comboId
+      ? []
+      : (item.product?.tags ?? []).map(({ tag }) => ({
+          nameEs: tag.nameEs,
+          nameEn: tag.nameEn,
+        })),
   };
 }
 
@@ -183,6 +200,9 @@ export class CartEntity {
   }
   get companyId(): string {
     return this.props.companyId;
+  }
+  get couponId(): string | null {
+    return this.props.couponId ?? null;
   }
   get items(): CartItemInfo[] {
     return this.props.items;
@@ -202,6 +222,7 @@ export class CartEntity {
     return new CartEntity({
       id: prisma.id,
       companyId: prisma.companyId,
+      couponId: prisma.couponId ?? null,
       createdAt: prisma.createdAt,
       updatedAt: prisma.updatedAt,
       items: (prisma.items ?? []).map((item) => ({

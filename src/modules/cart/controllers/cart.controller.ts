@@ -40,6 +40,9 @@ import { ClearCartUseCase } from "../../../core/application/use-cases/cart/clear
 import { RepeatOrderIntoCartUseCase } from "../../../core/application/use-cases/cart/repeat-order-into-cart.use-case";
 import { CartLangQueryDto } from "../../../core/application/dto/cart/cart-lang-query.dto";
 import { RepeatOrderIntoCartResponseDto } from "../../../core/application/dto/cart/repeat-order-into-cart-response.dto";
+import { ApplyCartCouponDto } from "../../../core/application/dto/cart/apply-cart-coupon.dto";
+import { ApplyCartCouponUseCase } from "../../../core/application/use-cases/cart/apply-cart-coupon.use-case";
+import { RemoveCartCouponUseCase } from "../../../core/application/use-cases/cart/remove-cart-coupon.use-case";
 
 const orderIdPipe = new ParseUUIDPipe({
   exceptionFactory: () =>
@@ -69,6 +72,8 @@ export class CartController {
     private readonly removeCartItemUseCase: RemoveCartItemUseCase,
     private readonly clearCartUseCase: ClearCartUseCase,
     private readonly repeatOrderIntoCartUseCase: RepeatOrderIntoCartUseCase,
+    private readonly applyCartCouponUseCase: ApplyCartCouponUseCase,
+    private readonly removeCartCouponUseCase: RemoveCartCouponUseCase,
   ) {}
 
   @Get()
@@ -78,10 +83,11 @@ export class CartController {
   })
   async getCart(
     @Query() query: CartLangQueryDto,
+    @CurrentUser() user: { id: string },
     @Headers("x-company-id") companyIdHeader?: string,
   ): Promise<CartResponseDto> {
     const companyId = this.requireCompanyId(companyIdHeader);
-    return this.getCartUseCase.execute(companyId, query.lang);
+    return this.getCartUseCase.execute(companyId, user.id, query.lang);
   }
 
   @Post("items")
@@ -109,10 +115,17 @@ export class CartController {
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: UpdateCartItemDto,
     @Query() query: CartLangQueryDto,
+    @CurrentUser() user: { id: string },
     @Headers("x-company-id") companyIdHeader?: string,
   ): Promise<CartResponseDto> {
     const companyId = this.requireCompanyId(companyIdHeader);
-    return this.updateCartItemUseCase.execute(companyId, id, dto, query.lang);
+    return this.updateCartItemUseCase.execute(
+      companyId,
+      user.id,
+      id,
+      dto,
+      query.lang,
+    );
   }
 
   @Delete("items/:id")
@@ -122,22 +135,75 @@ export class CartController {
   async removeItem(
     @Param("id", ParseUUIDPipe) id: string,
     @Query() query: CartLangQueryDto,
+    @CurrentUser() user: { id: string },
     @Headers("x-company-id") companyIdHeader?: string,
   ): Promise<CartResponseDto> {
     const companyId = this.requireCompanyId(companyIdHeader);
-    return this.removeCartItemUseCase.execute(companyId, id, query.lang);
+    return this.removeCartItemUseCase.execute(
+      companyId,
+      user.id,
+      id,
+      query.lang,
+    );
   }
 
   @Delete()
   @HttpCode(200)
   @PlatformOrCompanyRole(CART_ACCESS)
-  @ApiOperation({ summary: "Vaciar el carrito de la empresa" })
+  @ApiOperation({
+    summary: "Vaciar el carrito de la empresa (también quita el cupón)",
+  })
   async clear(
     @Query() query: CartLangQueryDto,
+    @CurrentUser() user: { id: string },
     @Headers("x-company-id") companyIdHeader?: string,
   ): Promise<CartResponseDto> {
     const companyId = this.requireCompanyId(companyIdHeader);
-    return this.clearCartUseCase.execute(companyId, query.lang);
+    return this.clearCartUseCase.execute(companyId, user.id, query.lang);
+  }
+
+  @Post("coupon")
+  @HttpCode(200)
+  @PlatformOrCompanyRole(CART_ACCESS)
+  @ApiOperation({
+    summary:
+      "Aplicar un código promocional al carrito (reemplaza al anterior). El descuento se recalcula en cada lectura y en el checkout.",
+  })
+  @ApiOkResponse({ type: CartResponseDto })
+  @ApiResponse({
+    status: 400,
+    description:
+      "Código inexistente, no vigente, de otra empresa, ya usado por el usuario o carrito vacío (message en español para el usuario)",
+  })
+  async applyCoupon(
+    @Body() dto: ApplyCartCouponDto,
+    @Query() query: CartLangQueryDto,
+    @CurrentUser() user: { id: string },
+    @Headers("x-company-id") companyIdHeader?: string,
+  ): Promise<CartResponseDto> {
+    const companyId = this.requireCompanyId(companyIdHeader);
+    return this.applyCartCouponUseCase.execute(
+      companyId,
+      user.id,
+      dto,
+      query.lang,
+    );
+  }
+
+  @Delete("coupon")
+  @HttpCode(200)
+  @PlatformOrCompanyRole(CART_ACCESS)
+  @ApiOperation({
+    summary: "Quitar el código promocional del carrito (idempotente)",
+  })
+  @ApiOkResponse({ type: CartResponseDto })
+  async removeCoupon(
+    @Query() query: CartLangQueryDto,
+    @CurrentUser() user: { id: string },
+    @Headers("x-company-id") companyIdHeader?: string,
+  ): Promise<CartResponseDto> {
+    const companyId = this.requireCompanyId(companyIdHeader);
+    return this.removeCartCouponUseCase.execute(companyId, user.id, query.lang);
   }
 
   // Antes que "repeat/:orderId" para que "last" no llegue al pipe de UUID.

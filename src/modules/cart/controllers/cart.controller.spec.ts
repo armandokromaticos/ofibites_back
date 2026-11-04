@@ -11,6 +11,8 @@ import { UpdateCartItemUseCase } from "../../../core/application/use-cases/cart/
 import { RemoveCartItemUseCase } from "../../../core/application/use-cases/cart/remove-cart-item.use-case";
 import { ClearCartUseCase } from "../../../core/application/use-cases/cart/clear-cart.use-case";
 import { RepeatOrderIntoCartUseCase } from "../../../core/application/use-cases/cart/repeat-order-into-cart.use-case";
+import { ApplyCartCouponUseCase } from "../../../core/application/use-cases/cart/apply-cart-coupon.use-case";
+import { RemoveCartCouponUseCase } from "../../../core/application/use-cases/cart/remove-cart-coupon.use-case";
 
 const COMPANY_ID = "0f8fad5b-d9cb-469f-a165-70867728950e";
 
@@ -22,6 +24,12 @@ describe("CartController (HTTP)", () => {
     execute: jest.fn(() =>
       Promise.resolve({ cart: { items: [] }, added: 1, skipped: [] }),
     ),
+  };
+  const applyCoupon = {
+    execute: jest.fn(() => Promise.resolve({ items: [], coupon: null })),
+  };
+  const removeCoupon = {
+    execute: jest.fn(() => Promise.resolve({ items: [], coupon: null })),
   };
   const passGuard = {
     canActivate: (ctx: {
@@ -42,6 +50,8 @@ describe("CartController (HTTP)", () => {
         { provide: RemoveCartItemUseCase, useValue: {} },
         { provide: ClearCartUseCase, useValue: {} },
         { provide: RepeatOrderIntoCartUseCase, useValue: repeat },
+        { provide: ApplyCartCouponUseCase, useValue: applyCoupon },
+        { provide: RemoveCartCouponUseCase, useValue: removeCoupon },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -116,6 +126,45 @@ describe("CartController (HTTP)", () => {
       .get("/cart?lang=en")
       .set("X-Company-Id", COMPANY_ID)
       .expect(200);
-    expect(getCart.execute).toHaveBeenCalledWith(COMPANY_ID, "en");
+    expect(getCart.execute).toHaveBeenCalledWith(COMPANY_ID, "user-1", "en");
+  });
+
+  it("POST /cart/coupon recorta el código y pasa usuario y empresa", async () => {
+    await request(app.getHttpServer())
+      .post("/cart/coupon")
+      .set("X-Company-Id", COMPANY_ID)
+      .send({ code: "  verano10 " })
+      .expect(200);
+    expect(applyCoupon.execute).toHaveBeenCalledWith(
+      COMPANY_ID,
+      "user-1",
+      { code: "verano10" },
+      undefined,
+    );
+  });
+
+  it("POST /cart/coupon sin código → 400 sin llamar al use-case", async () => {
+    applyCoupon.execute.mockClear();
+    const res = await request(app.getHttpServer())
+      .post("/cart/coupon")
+      .set("X-Company-Id", COMPANY_ID)
+      .send({ code: "   " })
+      .expect(400);
+    expect((res.body as { message: unknown }).message).toEqual([
+      "Escribe un código",
+    ]);
+    expect(applyCoupon.execute).not.toHaveBeenCalled();
+  });
+
+  it("DELETE /cart/coupon → 200", async () => {
+    await request(app.getHttpServer())
+      .delete("/cart/coupon")
+      .set("X-Company-Id", COMPANY_ID)
+      .expect(200);
+    expect(removeCoupon.execute).toHaveBeenCalledWith(
+      COMPANY_ID,
+      "user-1",
+      undefined,
+    );
   });
 });

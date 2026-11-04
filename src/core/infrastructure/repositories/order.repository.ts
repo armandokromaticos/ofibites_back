@@ -10,6 +10,7 @@ import {
 import { OrderEntity } from "../../domain/entities/order.entity";
 import { OrderStatus } from "../../domain/enums/order-status.enum";
 import { CartChangedException } from "../../domain/exceptions/cart-changed.exception";
+import { consumeCouponWithin } from "./coupon.repository";
 import { formatOrderNumber } from "../../domain/services/order-number";
 import { caracasYear } from "../../application/shared/caracas-time.util";
 import { buildOrderVisibilityWhere } from "./order-visibility.where";
@@ -87,16 +88,32 @@ export class OrderRepository implements IOrderRepository {
           throw new CartChangedException(cart.cartId);
         }
         // El carrito "cambió" (se vació): lo reflejan los que lo estén mirando.
-        await tx.cart.update({
-          where: { id: cart.cartId },
-          data: { updatedAt: new Date() },
+        // Mismo UPDATE: quita el cupón solo si sigue siendo el que se leyó.
+        const touched = await tx.cart.updateMany({
+          where: { id: cart.cartId, couponId: cart.couponId },
+          data: { updatedAt: new Date(), couponId: null },
         });
+        if (touched.count !== 1) {
+          throw new CartChangedException(cart.cartId);
+        }
 
         const orderNumber = await nextOrderNumber(tx);
-        return tx.order.create({
+        const created = await tx.order.create({
           data: entity.toPrismaCreate(orderNumber),
           include: ORDER_FULL_INCLUDE,
         });
+        if (cart.couponId) {
+          if (!entity.userId) {
+            throw new Error("Un pedido con cupón necesita userId");
+          }
+          await consumeCouponWithin(tx, {
+            couponId: cart.couponId,
+            userId: entity.userId,
+            orderId: created.id,
+            companyId: entity.companyId,
+          });
+        }
+        return created;
         // Timeout default (5000ms) insuficiente para la latencia entre la
         // región del server y el pooler de Supabase: varios round-trips
         // secuenciales en esta transacción (P2028 visto en producción).

@@ -19,6 +19,14 @@ export interface ICouponRepository {
 
   // Helpers de dominio
   findByName(name: string): Promise<CouponEntity | null>;
+  /**
+   * Cupón con `usages` limitados a los de `userId` (basta para
+   * `hasBeenUsedByUser` sin cargar todos los usos de un cupón GLOBAL).
+   */
+  findWithUserUsages(
+    where: Prisma.CouponWhereUniqueInput,
+    userId: string,
+  ): Promise<CouponEntity | null>;
   consumeCoupon(
     couponId: string,
     userId: string,

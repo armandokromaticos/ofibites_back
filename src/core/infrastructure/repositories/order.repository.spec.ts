@@ -4,9 +4,10 @@ import {
   OrderRepository,
 } from "./order.repository";
 import type { PrismaService } from "../database/prisma/prisma.service";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { OrderEntity } from "../../domain/entities/order.entity";
 import { CartChangedException } from "../../domain/exceptions/cart-changed.exception";
+import { CouponUnavailableException } from "../../domain/exceptions/coupon-unavailable.exception";
 
 interface CartRow {
   id: string;
@@ -19,15 +20,27 @@ interface CartRow {
  * (como el bloqueo de fila del contador y de las líneas del carrito en
  * Postgres) y rollback si el callback lanza.
  */
+interface CouponRow {
+  id: string;
+  usedQuantity: number;
+  totalQuantity: number;
+}
+
 function fakeDb(initial: {
   cartItems?: CartRow[];
   counters?: [number, number][];
+  cartCouponId?: string | null;
+  coupon?: CouponRow;
+  usages?: { couponId: string; userId: string; orderId: string }[];
 }) {
   const state = {
     cartItems: [...(initial.cartItems ?? [])],
     counters: new Map<number, number>(initial.counters ?? []),
     orders: [] as { orderNumber: string }[],
     cartTouched: 0,
+    cartCouponId: initial.cartCouponId ?? null,
+    coupon: initial.coupon ? { ...initial.coupon } : null,
+    usages: [...(initial.usages ?? [])],
   };
   let queue: Promise<unknown> = Promise.resolve();
 
@@ -56,10 +69,52 @@ function fakeDb(initial: {
         return Promise.resolve(count);
       }),
       cart: {
-        update: jest.fn(() => {
-          s.cartTouched += 1;
-          return Promise.resolve({});
+        updateMany: jest.fn(
+          ({ where }: { where: { couponId: string | null } }) => {
+            if (where.couponId !== s.cartCouponId) {
+              return Promise.resolve({ count: 0 });
+            }
+            s.cartTouched += 1;
+            s.cartCouponId = null;
+            return Promise.resolve({ count: 1 });
+          },
+        ),
+      },
+      // Simplificado: solo id y usos (la vigencia la cubre la condición del where).
+      coupon: {
+        fields: { totalQuantity: "totalQuantity" },
+        updateMany: jest.fn(({ where }: { where: { id: string } }) => {
+          const c = s.coupon;
+          if (!c || c.id !== where.id || c.usedQuantity >= c.totalQuantity) {
+            return Promise.resolve({ count: 0 });
+          }
+          s.coupon = { ...c, usedQuantity: c.usedQuantity + 1 };
+          return Promise.resolve({ count: 1 });
         }),
+      },
+      couponUsage: {
+        create: jest.fn(
+          ({
+            data,
+          }: {
+            data: { couponId: string; userId: string; orderId: string };
+          }) => {
+            if (
+              s.usages.some(
+                (u) => u.couponId === data.couponId && u.userId === data.userId,
+              )
+            ) {
+              return Promise.reject(
+                new Prisma.PrismaClientKnownRequestError("unique", {
+                  code: "P2002",
+                  clientVersion: "test",
+                }),
+              );
+            }
+            s.usages.push(data);
+            return Promise.resolve(data);
+          },
+        ),
       },
       order: {
         create: jest.fn(({ data }: { data: Prisma.OrderCreateInput }) => {
@@ -80,6 +135,9 @@ function fakeDb(initial: {
             counters: new Map(state.counters),
             orders: [...state.orders],
             cartTouched: state.cartTouched,
+            cartCouponId: state.cartCouponId,
+            coupon: state.coupon ? { ...state.coupon } : null,
+            usages: [...state.usages],
           };
           const result = await fn(client(draft)); // si lanza, no se aplica
           Object.assign(state, draft);
@@ -158,6 +216,7 @@ const SNAPSHOT = {
     { id: "ci-1", quantity: 2 },
     { id: "ci-2", quantity: 1 },
   ],
+  couponId: null,
 };
 const CART_ROWS: CartRow[] = [
   { id: "ci-1", cartId: "cart-1", quantity: 2 },
@@ -294,8 +353,83 @@ describe("OrderRepository.createFromCart", () => {
   it("snapshot vacío nunca crea pedido", async () => {
     const { repo, state } = fakeDb({ cartItems: [] });
     await expect(
-      repo.createFromCart(newOrder(), { cartId: "cart-1", items: [] }),
+      repo.createFromCart(newOrder(), {
+        cartId: "cart-1",
+        items: [],
+        couponId: null,
+      }),
     ).rejects.toBeInstanceOf(CartChangedException);
     expect(state.orders).toHaveLength(0);
+  });
+});
+
+describe("OrderRepository.createFromCart · cupón", () => {
+  const COUPON = { id: "coupon-1", usedQuantity: 0, totalQuantity: 5 };
+  const WITH_COUPON = { ...SNAPSHOT, couponId: "coupon-1" };
+
+  it("consume el cupón (uso + usedQuantity) y lo quita del carrito en la misma transacción", async () => {
+    const { repo, state, prisma } = fakeDb({
+      cartItems: CART_ROWS,
+      cartCouponId: "coupon-1",
+      coupon: COUPON,
+    });
+
+    await repo.createFromCart(newOrder(), WITH_COUPON);
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(state.orders).toHaveLength(1);
+    expect(state.cartCouponId).toBeNull();
+    expect(state.coupon?.usedQuantity).toBe(1);
+    expect(state.usages).toEqual([
+      {
+        couponId: "coupon-1",
+        userId: "user-1",
+        orderId: expect.stringMatching(/^order-OF-\d{4}-0001$/) as string,
+      },
+    ]);
+  });
+
+  it("sin usos al consumir → CouponUnavailableException y nada se guarda", async () => {
+    const { repo, state } = fakeDb({
+      cartItems: CART_ROWS,
+      cartCouponId: "coupon-1",
+      coupon: { ...COUPON, usedQuantity: 5 },
+    });
+
+    await expect(
+      repo.createFromCart(newOrder(), WITH_COUPON),
+    ).rejects.toBeInstanceOf(CouponUnavailableException);
+    expect(state.orders).toHaveLength(0);
+    expect(state.cartItems).toHaveLength(2);
+    expect(state.cartCouponId).toBe("coupon-1");
+  });
+
+  it("el usuario ya lo usó (unique couponId+userId) → CouponUnavailableException y nada se guarda", async () => {
+    const { repo, state } = fakeDb({
+      cartItems: CART_ROWS,
+      cartCouponId: "coupon-1",
+      coupon: COUPON,
+      usages: [{ couponId: "coupon-1", userId: "user-1", orderId: "otro" }],
+    });
+
+    await expect(
+      repo.createFromCart(newOrder(), WITH_COUPON),
+    ).rejects.toBeInstanceOf(CouponUnavailableException);
+    expect(state.orders).toHaveLength(0);
+    expect(state.coupon?.usedQuantity).toBe(0);
+  });
+
+  it("si el cupón del carrito cambió desde la lectura → CartChangedException", async () => {
+    const { repo, state } = fakeDb({
+      cartItems: CART_ROWS,
+      cartCouponId: null, // otro usuario lo quitó
+      coupon: COUPON,
+    });
+
+    await expect(
+      repo.createFromCart(newOrder(), WITH_COUPON),
+    ).rejects.toBeInstanceOf(CartChangedException);
+    expect(state.orders).toHaveLength(0);
+    expect(state.coupon?.usedQuantity).toBe(0);
   });
 });

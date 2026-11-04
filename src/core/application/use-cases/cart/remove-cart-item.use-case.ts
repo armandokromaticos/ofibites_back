@@ -15,6 +15,7 @@ export class RemoveCartItemUseCase {
 
   async execute(
     companyId: string,
+    userId: string,
     itemId: string,
     lang: Lang = Lang.ES,
   ): Promise<CartResponseDto> {
@@ -27,6 +28,6 @@ export class RemoveCartItemUseCase {
     }
 
     await this.cartRepository.removeItem(itemId);
-    return this.cartView.build(companyId, lang);
+    return this.cartView.build(companyId, userId, lang);
   }
 }

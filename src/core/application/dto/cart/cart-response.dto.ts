@@ -49,6 +49,14 @@ export class CartItemResponseDto {
   })
   isAvailable: boolean;
 
+  @ApiProperty({
+    type: [String],
+    example: ["Opción vegetariana", "Sin gluten"],
+    description:
+      "Nombres de los tags activos del producto en `lang` (en cae a es), ordenados por nombre. `[]` si no tiene o si la línea es un combo.",
+  })
+  tags: string[];
+
   @ApiPropertyOptional({ nullable: true, type: String })
   productSizeId: string | null;
 
@@ -82,7 +90,11 @@ export class CartSummaryResponseDto {
   @ApiProperty({ example: 120.5, description: "Suma de las líneas" })
   subtotal: number;
 
-  @ApiProperty({ example: 0, description: "Descuento (0 en la fase 1)" })
+  @ApiProperty({
+    example: 12.05,
+    description:
+      "Descuento del cupón aplicado (calculateDiscount sobre subtotal, con tope maxDiscount); 0 sin cupón o si `coupon.isValid` es false",
+  })
   discount: number;
 
   @ApiProperty({ example: 0.16, description: "Tasa de IVA" })
@@ -111,6 +123,20 @@ export class CartSummaryResponseDto {
   total: number;
 }
 
+export class CartCouponResponseDto {
+  @ApiProperty({ example: "VERANO2026", description: "Código (Coupon.nameEs)" })
+  code: string;
+
+  @ApiProperty({ example: 10, description: "Porcentaje de descuento" })
+  discountPercent: number;
+
+  @ApiProperty({
+    description:
+      "Si el cupón sigue aplicando a este usuario y empresa al leer el carrito. Si es false, summary.discount = 0 y el checkout lo rechaza: el front debe avisar y ofrecer quitarlo",
+  })
+  isValid: boolean;
+}
+
 export class CartResponseDto {
   @ApiProperty()
   id: string;
@@ -133,6 +159,13 @@ export class CartResponseDto {
       "Importes calculados en el servidor (IVA, envío, total). Son los que usa POST /orders/checkout",
   })
   summary: CartSummaryResponseDto;
+
+  @ApiPropertyOptional({
+    type: () => CartCouponResponseDto,
+    nullable: true,
+    description: "Cupón aplicado (POST /cart/coupon); null si no hay",
+  })
+  coupon: CartCouponResponseDto | null;
 
   @ApiProperty()
   createdAt: Date;

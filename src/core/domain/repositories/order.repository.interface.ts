@@ -35,6 +35,12 @@ export interface OrderListFilters {
 export interface CheckoutCartSnapshot {
   cartId: string;
   items: { id: string; quantity: number }[];
+  /**
+   * Cupón del carrito tal como se leyó (null = sin cupón). Si cambió, el
+   * checkout falla con `CartChangedException`; si viene, se consume en la
+   * misma transacción y el carrito queda sin cupón.
+   */
+  couponId: string | null;
 }
 
 export interface IOrderRepository {
@@ -42,9 +48,11 @@ export interface IOrderRepository {
   create(entity: OrderEntity): Promise<OrderEntity>;
   /**
    * Checkout: en **una transacción** borra del carrito exactamente las líneas
-   * del snapshot (mismo id y cantidad), asigna `orderNumber` y crea el pedido.
-   * Si alguna línea ya no está igual lanza `CartChangedException` y no se
-   * escribe nada.
+   * del snapshot (mismo id y cantidad), quita el cupón del carrito, asigna
+   * `orderNumber`, crea el pedido y consume el cupón (`consumeCouponWithin`).
+   * Si alguna línea o el cupón del carrito ya no están igual lanza
+   * `CartChangedException`; si el cupón ya no se puede consumir,
+   * `CouponUnavailableException`. En ambos casos no se escribe nada.
    */
   createFromCart(
     entity: OrderEntity,

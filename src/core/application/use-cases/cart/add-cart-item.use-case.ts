@@ -67,7 +67,7 @@ export class AddCartItemUseCase {
       });
     }
 
-    return this.cartView.build(companyId, lang);
+    return this.cartView.build(companyId, userId, lang);
   }
 
   private async assertLine(dto: AddCartItemDto): Promise<void> {

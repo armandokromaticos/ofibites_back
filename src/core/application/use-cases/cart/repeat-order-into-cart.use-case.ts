@@ -152,7 +152,7 @@ export class RepeatOrderIntoCartUseCase {
     await this.cartRepository.addItemsAtomically(companyId, lines);
 
     const response = new RepeatOrderIntoCartResponseDto();
-    response.cart = await this.cartView.build(companyId, lang);
+    response.cart = await this.cartView.build(companyId, actor.id, lang);
     response.added = lines.length;
     response.skipped = await this.withNames(skipped, lang);
     return response;

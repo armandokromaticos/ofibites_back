@@ -26,6 +26,10 @@ import { ClearCartUseCase } from "../../core/application/use-cases/cart/clear-ca
 import { RepeatOrderIntoCartUseCase } from "../../core/application/use-cases/cart/repeat-order-into-cart.use-case";
 import { ORDER_REPOSITORY } from "../../core/domain/repositories/order.repository.interface";
 import { OrderRepository } from "../../core/infrastructure/repositories/order.repository";
+import { COUPON_REPOSITORY } from "../../core/domain/repositories/coupon.repository.interface";
+import { CouponRepository } from "../../core/infrastructure/repositories/coupon.repository";
+import { ApplyCartCouponUseCase } from "../../core/application/use-cases/cart/apply-cart-coupon.use-case";
+import { RemoveCartCouponUseCase } from "../../core/application/use-cases/cart/remove-cart-coupon.use-case";
 
 @Module({
   imports: [AuthModule],
@@ -46,6 +50,7 @@ import { OrderRepository } from "../../core/infrastructure/repositories/order.re
     { provide: COMPANY_REPOSITORY, useClass: CompanyRepository },
     // COMPANY_MEMBER_REPOSITORY lo exporta AuthModule.
     { provide: ORDER_REPOSITORY, useClass: OrderRepository },
+    { provide: COUPON_REPOSITORY, useClass: CouponRepository },
     LineItemPricingService,
     LineItemAvailabilityService,
     CartViewService,
@@ -55,6 +60,8 @@ import { OrderRepository } from "../../core/infrastructure/repositories/order.re
     RemoveCartItemUseCase,
     ClearCartUseCase,
     RepeatOrderIntoCartUseCase,
+    ApplyCartCouponUseCase,
+    RemoveCartCouponUseCase,
   ],
 })
 export class CartModule {}

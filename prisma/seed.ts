@@ -273,11 +273,18 @@ const PRODUCTOS: ProductoSeed[] = [
     nameEs: "Surtido: Coffee Break AM",
     nameEn: "Assortment: AM Coffee Break",
     descriptionEs:
-      "Mini croissants, pan de guayaba, fruta picada y yogur griego con granola para la reunión de la mañana.",
+      "La pausa de media mañana que tu equipo se merece: mini croissants de mantequilla, pan de guayaba " +
+      "recién horneado, fruta fresca picada y yogur griego con granola crocante. Todo llega listo para " +
+      "servir, en porciones individuales, para que la reunión siga sin interrupciones.",
     descriptionEn:
       "Mini croissants, guava bread, cut fruit and Greek yogurt with granola for the morning meeting.",
     basePrice: "45.00",
     image: `${IMG}/caja-desayuno.png`,
+    gallery: [
+      `${IMG}/caja-desayuno-card.png`,
+      `${IMG}/gallery/cafe-croissants.png`,
+      `${IMG}/gallery/cafe-bolleria.png`,
+    ],
     sizes: tamanos(1, 45, 120),
     tags: ["saludable"],
     ingredients: [14, 15, 23, 24, 25],
@@ -300,11 +307,18 @@ const PRODUCTOS: ProductoSeed[] = [
     nameEs: "Surtido Gluten free (de 4 a 15 personas)",
     nameEn: "Gluten free assortment (4 to 15 people)",
     descriptionEs:
-      "Arepitas, tequeños de yuca, frutas y quesos: todo sin gluten y preparado en línea separada.",
+      "Pensado para que nadie se quede fuera: arepitas de maíz, tequeños de yuca, frutas de temporada y una " +
+      "selección de quesos. Todo se prepara en una línea separada, sin trazas de gluten, y viene rotulado " +
+      "para que cada invitado sepa qué está comiendo.",
     descriptionEn:
       "Arepitas, cassava tequeños, fruit and cheeses: all gluten free, prepared on a separate line.",
     basePrice: "60.00",
     image: `${IMG}/caja-bowl.png`,
+    gallery: [
+      `${IMG}/gallery/pasapalos-principal.png`,
+      `${IMG}/gallery/pasapalos.png`,
+      `${IMG}/caja-desayuno-card.png`,
+    ],
     sizes: tamanos(2, 60, 180),
     tags: ["sinGluten", "saludable"],
     ingredients: [7, 10, 24],
@@ -316,11 +330,14 @@ const PRODUCTOS: ProductoSeed[] = [
     nameEs: "Coffee Break Ejecutivo",
     nameEn: "Executive Coffee Break",
     descriptionEs:
-      "Mini sándwiches, bagels y canapés para reuniones de 4 a 15 personas.",
+      "Nuestra caja insignia para reuniones importantes: mini sándwiches gourmet, bagels con queso crema y " +
+      "salmón, y canapés variados, montados a mano esa misma mañana. Una presentación cuidada que habla " +
+      "bien de tu empresa, ideal para grupos de 4 a 15 personas.",
     descriptionEn:
       "Mini sandwiches, bagels and canapés for meetings of 4 to 15 people.",
     basePrice: "85.00",
     image: `${IMG}/coffee-break-box.webp`,
+    gallery: [`${IMG}/morning-bite.webp`, `${IMG}/gallery/cafe-panes.png`],
     sizes: tamanos(3, 85, 240),
     ingredients: [8, 10, 14, 26],
     nutrition: nutricion({
@@ -342,11 +359,18 @@ const PRODUCTOS: ProductoSeed[] = [
     nameEs: "Morning Bite",
     nameEn: "Morning Bite",
     descriptionEs:
-      "Croissant, sándwiches, magdalenas, fruta y café para empezar la jornada.",
+      "Todo lo que necesitas para arrancar la jornada en una sola caja: croissant de mantequilla, sándwich " +
+      "de jamón y queso, magdalena casera, fruta fresca y café recién colado. Práctico para recibir al " +
+      "equipo o para un desayuno de trabajo sin complicaciones.",
     descriptionEn:
       "Croissant, sandwiches, muffins, fruit and coffee to start the day.",
     basePrice: "38.00",
     image: `${IMG}/morning-bite.webp`,
+    gallery: [
+      `${IMG}/caja-desayuno-card.png`,
+      `${IMG}/gallery/cafe-croissants.png`,
+      `${IMG}/caja-desayuno.png`,
+    ],
     sizes: tamanos(4, 38, 95),
     ingredients: [8, 11, 14, 15],
     isNew: true,
@@ -357,11 +381,18 @@ const PRODUCTOS: ProductoSeed[] = [
     nameEs: "Desayuno Keto",
     nameEn: "Keto Breakfast",
     descriptionEs:
-      "Huevos, quesos, embutidos y aguacate, sin harinas ni azúcar añadida.",
+      "Un desayuno completo sin harinas ni azúcar añadida: huevos revueltos con hierbas, quesos maduros, " +
+      "embutidos seleccionados y aguacate en su punto. Saciante y lleno de sabor, pensado para quienes " +
+      "cuidan su alimentación sin renunciar a comer bien en la oficina.",
     descriptionEn:
       "Eggs, cheeses, cold cuts and avocado, with no flour or added sugar.",
     basePrice: "52.00",
-    image: null,
+    image: `${IMG}/caja-desayuno-card.png`,
+    gallery: [
+      `${IMG}/caja-bowl.png`,
+      `${IMG}/gallery/pasapalos.png`,
+      `${IMG}/gallery/cafe-panes.png`,
+    ],
     sizes: tamanos(5, 52, 140),
     tags: ["keto", "sinGluten"],
     ingredients: [8, 10, 11, 12],
@@ -382,11 +413,18 @@ const PRODUCTOS: ProductoSeed[] = [
     nameEs: "Bowl Working Lunch",
     nameEn: "Working Lunch Bowl",
     descriptionEs:
-      "Bowls de proteína, granos y vegetales asados para almuerzos de trabajo.",
+      "Almuerzos equilibrados para días de mucho trabajo: bowls con proteína a la plancha, granos " +
+      "integrales y vegetales asados, acompañados de aderezos de la casa. Llegan en envases individuales, " +
+      "listos para comer en la sala de reuniones o en el escritorio.",
     descriptionEn:
       "Protein, grain and roasted vegetable bowls for working lunches.",
     basePrice: "70.00",
     image: `${IMG}/caja-bowl.png`,
+    gallery: [
+      `${IMG}/caja-desayuno-card.png`,
+      `${IMG}/coffee-break-box.webp`,
+      `${IMG}/bebidas.png`,
+    ],
     sizes: tamanos(6, 70, 210),
     tags: ["saludable"],
     ingredients: [4, 12, 13, 16, 26],
@@ -407,10 +445,14 @@ const PRODUCTOS: ProductoSeed[] = [
     n: 7,
     nameEs: "Working Lunch Vegano",
     nameEn: "Vegan Working Lunch",
-    descriptionEs: "Bowls y wraps 100 % vegetales con aderezos de la casa.",
+    descriptionEs:
+      "Bowls y wraps 100 % vegetales, con legumbres, granos, vegetales frescos y asados, y aderezos de la " +
+      "casa hechos sin ingredientes de origen animal. Coloridos, saciantes y llenos de sabor, para que el " +
+      "almuerzo vegano del equipo sea el más esperado del día.",
     descriptionEn: "100% plant-based bowls and wraps with house dressings.",
     basePrice: "68.00",
     image: `${IMG}/caja-bowl.png`,
+    gallery: [`${IMG}/bebidas.png`, `${IMG}/caja-desayuno-card.png`],
     sizes: tamanos(7, 68, 200),
     tags: ["vegano", "saludable"],
     ingredients: [4, 12, 16, 17, 18],
@@ -423,11 +465,18 @@ const PRODUCTOS: ProductoSeed[] = [
     nameEs: "Wraps de pollo y vegetales",
     nameEn: "Chicken and vegetable wraps",
     descriptionEs:
-      "Caja de 6 wraps individuales con pollo a la plancha, vegetales frescos y salsa de yogur.",
+      "Caja de 6 wraps individuales rellenos de pollo a la plancha, lechuga, tomate, zanahoria rallada y " +
+      "nuestra salsa de yogur con hierbas. Fáciles de comer sin cubiertos, son la opción perfecta para " +
+      "almuerzos rápidos o reuniones que se extienden.",
     descriptionEn:
       "Box of 6 individual wraps with grilled chicken, fresh vegetables and yogurt sauce.",
     basePrice: "55.00",
-    image: null,
+    image: `${IMG}/coffee-break-box.webp`,
+    gallery: [
+      `${IMG}/caja-bowl.png`,
+      `${IMG}/caja-desayuno-card.png`,
+      `${IMG}/bebidas.png`,
+    ],
     ingredients: [13, 14, 25, 26],
     nutrition: nutricion({
       calories: 430,
@@ -446,11 +495,17 @@ const PRODUCTOS: ProductoSeed[] = [
     nameEs: "Bebidas naturales",
     nameEn: "Natural drinks",
     descriptionEs:
-      "Jugos de parchita, mango y fresa, sin azúcar añadida, para acompañar cada pedido.",
+      "Jugos naturales de parchita, mango y fresa, preparados con fruta fresca y sin azúcar añadida. Vienen " +
+      "bien fríos, en botellas individuales, para acompañar cualquier pedido y refrescar al equipo con el " +
+      "sabor de siempre.",
     descriptionEn:
       "Passion fruit, mango and strawberry juices, no added sugar, to go with every order.",
     basePrice: "18.00",
     image: `${IMG}/bebidas.png`,
+    gallery: [
+      "/images/banners/dashboard-bebidas.png",
+      `${IMG}/caja-desayuno-card.png`,
+    ],
     sizes: tamanos(9, 18, 48),
     tags: ["vegano", "saludable", "sinGluten"],
     ingredients: [24],
@@ -461,11 +516,18 @@ const PRODUCTOS: ProductoSeed[] = [
     nameEs: "Café de especialidad",
     nameEn: "Specialty coffee",
     descriptionEs:
-      "Termos de café venezolano recién colado, con leche vegetal opcional.",
+      "Termos de café venezolano de origen, recién colado y servido a la temperatura justa. Incluye vasos, " +
+      "azúcar y, si lo prefieres, leche de vaca o vegetal. El acompañante ideal para desayunos, coffee " +
+      "breaks y reuniones que empiezan temprano.",
     descriptionEn:
       "Flasks of freshly brewed Venezuelan coffee, with optional plant milk.",
     basePrice: "15.00",
-    image: null,
+    image: `${IMG}/morning-bite.webp`,
+    gallery: [
+      `${IMG}/gallery/cafe-croissants.png`,
+      `${IMG}/gallery/cafe-panes.png`,
+      `${IMG}/gallery/cafe-bolleria.png`,
+    ],
     sizes: tamanos(10, 15, 40),
     tags: ["vegano", "sinGluten", "keto"],
     ingredients: [21],
@@ -487,11 +549,18 @@ const PRODUCTOS: ProductoSeed[] = [
     nameEs: "Bollería de la casa",
     nameEn: "House pastries",
     descriptionEs:
-      "Croissants, pan de guayaba y cachitos horneados esa misma mañana.",
+      "Croissants de mantequilla, pan de guayaba y cachitos de jamón horneados esa misma mañana en nuestro " +
+      "obrador. Crujientes por fuera y suaves por dentro, son el detalle que convierte cualquier reunión en " +
+      "un buen momento.",
     descriptionEn:
       "Croissants, guava bread and cachitos baked that same morning.",
     basePrice: "30.00",
-    image: null,
+    image: "/images/banners/dashboard-bolleria.png",
+    gallery: [
+      `${IMG}/gallery/cafe-croissants.png`,
+      `${IMG}/gallery/cafe-bolleria.png`,
+      `${IMG}/gallery/cafe-panes.png`,
+    ],
     sizes: tamanos(11, 30, 90),
     ingredients: [8, 14, 15, 23],
     secciones: ["coffee-break", "desayunos"],
@@ -501,10 +570,13 @@ const PRODUCTOS: ProductoSeed[] = [
     nameEs: "Surtido salado mini",
     nameEn: "Mini savory assortment",
     descriptionEs:
-      "Tequeños, mini empanadas y pasapalos salados para reuniones.",
+      "Tequeños de queso, mini empanadas y una selección de pasapalos salados, perfectos para picar entre " +
+      "presentaciones. Llegan calientes y listos para compartir, en porciones pequeñas que se comen de un " +
+      "bocado.",
     descriptionEn: "Tequeños, mini empanadas and savory bites for meetings.",
     basePrice: "48.00",
-    image: null,
+    image: `${IMG}/gallery/pasapalos-principal.png`,
+    gallery: [`${IMG}/gallery/pasapalos.png`, `${IMG}/coffee-break-box.webp`],
     sizes: tamanos(12, 48, 130),
     tags: ["keto"],
     ingredients: [3, 5, 10, 14],
@@ -525,11 +597,18 @@ const PRODUCTOS: ProductoSeed[] = [
     nameEs: "Desayuno criollo",
     nameEn: "Venezuelan breakfast",
     descriptionEs:
-      "Arepas rellenas, perico, queso blanco y caraotas para todo el equipo.",
+      "El sabor de casa para todo el equipo: arepas rellenas, perico, queso blanco rallado, caraotas negras " +
+      "y nata. Un desayuno abundante y lleno de tradición venezolana, preparado esa mañana y servido listo " +
+      "para disfrutar.",
     descriptionEn:
       "Stuffed arepas, scrambled eggs with tomato and onion, white cheese and black beans.",
     basePrice: "42.00",
-    image: null,
+    image: `${IMG}/caja-desayuno.png`,
+    gallery: [
+      `${IMG}/gallery/pasapalos-principal.png`,
+      `${IMG}/gallery/pasapalos.png`,
+      `${IMG}/gallery/cafe-panes.png`,
+    ],
     sizes: tamanos(13, 42, 110),
     tags: ["sinGluten"],
     ingredients: [3, 7, 10, 11, 22, 26],
@@ -541,11 +620,14 @@ const PRODUCTOS: ProductoSeed[] = [
     nameEs: "Jugos verdes",
     nameEn: "Green juices",
     descriptionEs:
-      "Pack de 6: espinaca, piña, apio y jengibre, prensados en frío.",
+      "Pack de 6 jugos prensados en frío con espinaca, piña, apio y jengibre. Refrescantes, sin azúcar " +
+      "añadida y llenos de nutrientes, son una forma ligera de cuidar la energía del equipo durante la " +
+      "jornada.",
     descriptionEn:
       "Pack of 6: spinach, pineapple, celery and ginger, cold pressed.",
     basePrice: "20.00",
-    image: null,
+    image: "/images/banners/dashboard-bebidas.png",
+    gallery: [`${IMG}/bebidas.png`, `${IMG}/caja-desayuno-card.png`],
     tags: ["vegano", "saludable", "keto"],
     ingredients: [18, 19, 20],
     nutrition: nutricion({
@@ -1274,6 +1356,7 @@ const BANNERS = [
   {
     n: 1,
     title: "Coffee Break Ejecutivo",
+    subtitle: "Ideal para reuniones de 4 a 15 personas",
     imageUrl: `${IMG}/coffee-break-box.webp`,
     altText: "Caja de coffee break con bagels, sándwiches y canapés",
     linkUrl: `/producto/${productId(3)}`,
@@ -1300,6 +1383,7 @@ async function seedBanners() {
     const id = `b4a10000-0000-4000-8000-${pad(b.n)}`;
     const datos = {
       title: b.title,
+      subtitle: b.subtitle ?? null,
       imageUrl: b.imageUrl,
       altText: b.altText,
       linkUrl: b.linkUrl,

@@ -215,7 +215,11 @@ describe("RepeatOrderIntoCartUseCase", () => {
     // Nada fuera de la transacción.
     expect(cartRepository.addItem).not.toHaveBeenCalled();
     expect(cartRepository.incrementItemQuantity).not.toHaveBeenCalled();
-    expect(cartView.build).toHaveBeenCalledWith("company-1", Lang.EN);
+    expect(cartView.build).toHaveBeenCalledWith(
+      "company-1",
+      "buyer-1",
+      Lang.EN,
+    );
     expect(result.added).toBe(2);
     expect(result.skipped).toEqual([]);
   });

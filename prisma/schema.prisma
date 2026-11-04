@@ -277,6 +277,7 @@ model Coupon {
   company Company?      @relation(fields: [companyId], references: [id], onDelete: Restrict)
   usages  CouponUsage[]
   orders  Order[]
+  carts   Cart[]
 
   @@index([companyId])
   @@map("coupons")
@@ -674,12 +675,16 @@ model OrderItemModifier {
 model Cart {
   id        String   @id @default(uuid())
   companyId String   @unique @map("company_id")
+  /// Cupón aplicado (POST /cart/coupon); se revalida y consume en el checkout.
+  couponId  String?  @map("coupon_id")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   company Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  coupon  Coupon?    @relation(fields: [couponId], references: [id], onDelete: SetNull)
   items   CartItem[]
 
+  @@index([couponId])
   @@map("carts")
 }
 
@@ -725,6 +730,7 @@ model CartItemModifier {
 model Banner {
   id              String    @id @default(uuid())
   title           String?
+  subtitle        String?
   imageUrl        String?   @map("image_url")
   imageMobileUrl  String?   @map("image_mobile_url")
   altText         String    @map("alt_text")

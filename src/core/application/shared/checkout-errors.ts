@@ -12,6 +12,7 @@ export const CheckoutErrorCode = {
   ADDRESS_NOT_SHIPPING: "ADDRESS_NOT_SHIPPING",
   CART_CHANGED: "CART_CHANGED",
   TOTAL_CHANGED: "TOTAL_CHANGED",
+  COUPON_INVALID: "COUPON_INVALID",
 } as const;
 
 export type CheckoutErrorCode =
