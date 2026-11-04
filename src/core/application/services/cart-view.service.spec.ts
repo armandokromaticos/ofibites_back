@@ -5,6 +5,10 @@ import type { LineItemPricingService } from "./line-item-pricing.service";
 import type { ICouponRepository } from "../../domain/repositories/coupon.repository.interface";
 import { CouponEntity } from "../../domain/entities/coupon.entity";
 import { CouponType } from "../../domain/enums/coupon-type.enum";
+import { CompanyBillingService } from "./company-billing.service";
+import type { IInvoiceRepository } from "../../domain/repositories/invoice.repository.interface";
+import type { ICompanyRepository } from "../../domain/repositories/company.repository.interface";
+import { invoice } from "../../testing/invoice-fixtures";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -68,6 +72,16 @@ function setup(
       ),
     } as unknown as LineItemPricingService,
     couponRepository as unknown as ICouponRepository,
+    {
+      getStatus: jest.fn(() =>
+        Promise.resolve({
+          open: [],
+          overdue: [],
+          alert: null,
+          creditLine: null,
+        }),
+      ),
+    } as unknown as CompanyBillingService,
   );
   return Object.assign(service, { couponMock: couponRepository });
 }
@@ -197,5 +211,103 @@ describe("CartViewService · cupón", () => {
     }).build("company-1", "user-1");
     expect(dto.coupon).toBeNull();
     expect(dto.summary.discount).toBe(0);
+  });
+});
+
+describe("CartViewService · facturas (T-06)", () => {
+  function viewWith(
+    company: { creditDays: number; creditLimit: number | null },
+    openInvoices: ReturnType<typeof invoice>[],
+    subtotal: number,
+  ) {
+    const cart = new CartEntity({
+      id: "cart-1",
+      companyId: "company-1",
+      couponId: null,
+      items: [
+        {
+          id: "ci-0",
+          productId: "p-0",
+          productSizeId: null,
+          comboId: null,
+          quantity: 1,
+          addedById: null,
+          modifierIds: [],
+        },
+      ],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const companyRepository = {
+      findUnique: jest.fn(() => Promise.resolve(company)),
+    } as unknown as ICompanyRepository;
+    return new CartViewService(
+      {
+        getOrCreateViewByCompanyId: jest.fn(() => Promise.resolve(cart)),
+      } as unknown as ICartRepository,
+      {
+        priceLines: jest.fn(() =>
+          Promise.resolve([{ unitPrice: subtotal, subtotal, modifiers: [] }]),
+        ),
+      } as unknown as LineItemPricingService,
+      {
+        findWithUserUsages: jest.fn(() => Promise.resolve(null)),
+      } as unknown as ICouponRepository,
+      new CompanyBillingService(
+        {
+          findOpenByCompany: jest.fn(() => Promise.resolve(openInvoices)),
+        } as unknown as IInvoiceRepository,
+        companyRepository,
+      ),
+    );
+  }
+
+  afterEach(() => jest.useRealTimers());
+
+  it("aviso DUE_SOON desde 3 días antes (hora de Caracas) y sin línea de crédito en contado", async () => {
+    jest.useFakeTimers({ now: new Date("2026-10-17T02:00:00.000Z") }); // 16/10 22:00 Caracas
+    const dto = await viewWith(
+      { creditDays: 0, creditLimit: null },
+      [invoice({ dueDate: new Date("2026-10-19T00:00:00.000Z") })],
+      100,
+    ).build("company-1", "user-1");
+    expect(dto.invoiceAlert).toMatchObject({
+      level: "DUE_SOON",
+      blocksCheckout: false,
+      count: 1,
+      invoice: {
+        invoiceNumber: "F-2026-0001",
+        daysUntilDue: 3,
+        dueDate: "2026-10-19T00:00:00.000Z",
+      },
+    });
+    expect(dto.creditLine).toBeNull();
+  });
+
+  it("sin facturas abiertas → invoiceAlert null", async () => {
+    const dto = await viewWith(
+      { creditDays: 0, creditLimit: null },
+      [],
+      100,
+    ).build("company-1", "user-1");
+    expect(dto.invoiceAlert).toBeNull();
+  });
+
+  it("crédito con tope: creditLine con disponible y exceedsAvailable según summary.total", async () => {
+    jest.useFakeTimers({ now: new Date("2026-10-16T14:00:00.000Z") });
+    const dto = await viewWith(
+      { creditDays: 30, creditLimit: 200 },
+      [invoice({ total: 100 })],
+      100,
+    ).build("company-1", "user-1");
+    // 100 + IVA 16 + envío 5 = 121 > 100 disponible.
+    expect(dto.creditLine).toEqual({
+      creditDays: 30,
+      creditLimit: 200,
+      committed: 100,
+      available: 100,
+      isBlocked: false,
+      exceedsAvailable: true,
+    });
   });
 });

@@ -14,6 +14,11 @@ import { consumeCouponWithin } from "./coupon.repository";
 import { formatOrderNumber } from "../../domain/services/order-number";
 import { caracasYear } from "../../application/shared/caracas-time.util";
 import { buildOrderVisibilityWhere } from "./order-visibility.where";
+import {
+  issueInvoiceWithin,
+  voidInvoiceForCancellationWithin,
+} from "./invoice.repository";
+import { InvoiceRuleException } from "../../domain/exceptions/invoice-rule.exception";
 
 /**
  * Siguiente `orderNumber` del año de Caracas. `INSERT ... ON CONFLICT DO
@@ -203,12 +208,40 @@ export class OrderRepository implements IOrderRepository {
     return { data };
   }
 
-  async updateStatus(id: string, status: OrderStatus): Promise<OrderEntity> {
-    const order = await this.prisma.order.update({
-      where: { id },
-      data: { status },
-      include: ORDER_FULL_INCLUDE,
-    });
+  async updateStatus(
+    id: string,
+    status: OrderStatus,
+    from: OrderStatus,
+  ): Promise<OrderEntity> {
+    const now = new Date();
+    const order = await this.prisma.$transaction(
+      async (tx) => {
+        // Bloquea el pedido: serializa esta transición con el backfill de
+        // facturas (que también lo bloquea) y con otras transiciones.
+        await tx.$queryRaw`SELECT "id" FROM "orders" WHERE "id" = ${id} FOR UPDATE`;
+        // Antes de tocar el pedido: si tiene pagos aprobados no se cancela.
+        if (status === OrderStatus.CANCELLED) {
+          await voidInvoiceForCancellationWithin(tx, id, now);
+        }
+        // Comparar e intercambiar: si otra petición ya cambió el estado, no se
+        // emite ni se anula nada sobre un estado que ya no es el leído.
+        const moved = await tx.order.updateMany({
+          where: { id, status: from },
+          data: { status },
+        });
+        if (moved.count !== 1) {
+          throw new InvoiceRuleException("ORDER_STATUS_CHANGED");
+        }
+        if (status === OrderStatus.CONFIRMED) {
+          await issueInvoiceWithin(tx, id, now);
+        }
+        return tx.order.findUniqueOrThrow({
+          where: { id },
+          include: ORDER_FULL_INCLUDE,
+        });
+      },
+      { timeout: 15000 },
+    );
     return OrderEntity.fromPrisma(order);
   }
 }

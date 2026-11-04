@@ -1,4 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { InvoicePaymentStatus } from "../../../domain/enums/invoice-payment-status.enum";
+import { CreditLineResponseDto } from "../invoices/invoice-response.dto";
 
 export class CartItemModifierResponseDto {
   @ApiProperty()
@@ -137,6 +139,57 @@ export class CartCouponResponseDto {
   isValid: boolean;
 }
 
+export class CartInvoiceAlertInvoiceDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  orderId: string;
+
+  @ApiProperty({ example: "F-2026-0042" })
+  invoiceNumber: string;
+
+  @ApiProperty({ nullable: true, type: String, example: "OF-2026-0107" })
+  orderNumber: string | null;
+
+  @ApiProperty({ example: 340 })
+  balance: number;
+
+  @ApiProperty({ type: String, format: "date-time", description: "Fecha pura" })
+  dueDate: string;
+
+  @ApiProperty({ description: "Negativo si está vencida" })
+  daysUntilDue: number;
+
+  @ApiProperty({ enum: InvoicePaymentStatus, enumName: "InvoicePaymentStatus" })
+  paymentStatus: InvoicePaymentStatus;
+}
+
+export class CartInvoiceAlertDto {
+  @ApiProperty({ enum: ["OVERDUE", "DUE_SOON"] })
+  level: "OVERDUE" | "DUE_SOON";
+
+  @ApiProperty({ description: "true solo con OVERDUE" })
+  blocksCheckout: boolean;
+
+  @ApiProperty({ description: "Facturas en ese nivel" })
+  count: number;
+
+  @ApiProperty({
+    type: () => CartInvoiceAlertInvoiceDto,
+    description: "La vencida más antigua o la que vence antes",
+  })
+  invoice: CartInvoiceAlertInvoiceDto;
+}
+
+export class CartCreditLineDto extends CreditLineResponseDto {
+  @ApiProperty({
+    description:
+      "summary.total > available (false sin tope); el checkout daría CREDIT_LIMIT_EXCEEDED",
+  })
+  exceedsAvailable: boolean;
+}
+
 export class CartResponseDto {
   @ApiProperty()
   id: string;
@@ -166,6 +219,21 @@ export class CartResponseDto {
     description: "Cupón aplicado (POST /cart/coupon); null si no hay",
   })
   coupon: CartCouponResponseDto | null;
+
+  @ApiProperty({
+    type: () => CartInvoiceAlertDto,
+    nullable: true,
+    description:
+      "T-06: factura vencida (bloquea el checkout) o que vence en 0–3 días; null si no hay",
+  })
+  invoiceAlert: CartInvoiceAlertDto | null;
+
+  @ApiProperty({
+    type: () => CartCreditLineDto,
+    nullable: true,
+    description: "T-06: línea de crédito de la empresa; null si es de contado",
+  })
+  creditLine: CartCreditLineDto | null;
 
   @ApiProperty()
   createdAt: Date;

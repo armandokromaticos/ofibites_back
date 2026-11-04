@@ -38,6 +38,14 @@ export class CompanyResponseDto {
   })
   creditDays: number;
 
+  @ApiProperty({
+    nullable: true,
+    type: Number,
+    example: 8000,
+    description: "T-06: cupo de crédito en USD; null = sin tope.",
+  })
+  creditLimit: number | null;
+
   @ApiProperty()
   isActive: boolean;
 
@@ -66,6 +74,7 @@ export class CompanyResponseDto {
     dto.fiscalName = entity.fiscalName;
     dto.fiscalAddress = entity.fiscalAddress;
     dto.creditDays = entity.creditDays;
+    dto.creditLimit = entity.creditLimit;
     dto.isActive = entity.isActive;
     dto.onboardingCompletedAt =
       entity.onboardingCompletedAt?.toISOString() ?? null;

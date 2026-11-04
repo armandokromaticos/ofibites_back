@@ -13,6 +13,10 @@ export const CheckoutErrorCode = {
   CART_CHANGED: "CART_CHANGED",
   TOTAL_CHANGED: "TOTAL_CHANGED",
   COUPON_INVALID: "COUPON_INVALID",
+  /** T-06: la empresa tiene alguna factura vencida (trae `overdueInvoices`). */
+  INVOICE_OVERDUE: "INVOICE_OVERDUE",
+  /** T-06: el total supera el crédito disponible (trae `total` y `available`). */
+  CREDIT_LIMIT_EXCEEDED: "CREDIT_LIMIT_EXCEEDED",
 } as const;
 
 export type CheckoutErrorCode =

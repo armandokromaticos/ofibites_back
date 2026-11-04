@@ -41,6 +41,12 @@ import { toCents } from "../../../domain/services/order-summary";
 import { CheckoutOrderDto } from "../../dto/orders/checkout-order.dto";
 import { localized } from "../catalog/catalog-entry.mapper";
 import { toSkipReason } from "../cart/repeat-order-into-cart.use-case";
+import { CompanyBillingService } from "../../services/company-billing.service";
+import {
+  exceedsCreditLine,
+  invoiceBalance,
+} from "../../../domain/services/invoice-rules";
+import { formatUsd } from "../../shared/invoice-errors";
 
 export interface CheckoutActor {
   id: string;
@@ -64,6 +70,9 @@ export const CHECKOUT_TOTAL_CHANGED_MESSAGE =
 
 export const CHECKOUT_COUPON_INVALID_MESSAGE =
   "El código aplicado ya no está vigente. Quítalo para continuar.";
+
+export const CHECKOUT_INVOICE_OVERDUE_MESSAGE =
+  "Tu empresa tiene una factura vencida. Págala para poder confirmar pedidos nuevos.";
 
 export const CHECKOUT_UNAVAILABLE_MESSAGE =
   "Algunos productos del carrito ya no están disponibles. Quítalos para confirmar el pedido";
@@ -100,6 +109,7 @@ export class CheckoutOrderUseCase {
     private readonly lineItemAvailability: LineItemAvailabilityService,
     @Inject(COUPON_REPOSITORY)
     private readonly couponRepository: ICouponRepository,
+    private readonly companyBilling: CompanyBillingService,
   ) {}
 
   async execute(
@@ -114,6 +124,26 @@ export class CheckoutOrderUseCase {
       }),
       this.assertShippingAddress(companyId, dto.deliveryAddressId),
     ]);
+
+    // T-06: con una factura vencida no se confirman pedidos nuevos (aunque
+    // tenga un comprobante en revisión).
+    const billing = await this.companyBilling.getStatus(companyId, now);
+    if (billing.overdue.length > 0) {
+      throw checkoutBadRequest(
+        CheckoutErrorCode.INVOICE_OVERDUE,
+        CHECKOUT_INVOICE_OVERDUE_MESSAGE,
+        {
+          overdueInvoices: billing.overdue.map((invoice) => ({
+            id: invoice.id,
+            orderId: invoice.orderId,
+            invoiceNumber: invoice.invoiceNumber,
+            orderNumber: invoice.orderNumber,
+            balance: invoiceBalance(invoice.total, invoice.amountPaid),
+            dueDate: invoice.dueDate.toISOString(),
+          })),
+        },
+      );
+    }
 
     const cutoffError = deliveryCutoffError(dto.deliveryDate, now);
     if (cutoffError) {
@@ -157,6 +187,17 @@ export class CheckoutOrderUseCase {
       items.map((item) => item.subtotal),
       coupon,
     );
+    // T-06: cupo de crédito (solo empresas a crédito con tope). Va antes del
+    // 409 de expectedTotal para que se vea primero el motivo de negocio.
+    if (exceedsCreditLine(billing.creditLine, summary.total)) {
+      const available = billing.creditLine?.available ?? 0;
+      throw checkoutBadRequest(
+        CheckoutErrorCode.CREDIT_LIMIT_EXCEEDED,
+        `El total del pedido (${formatUsd(summary.total)}) supera el crédito disponible de tu empresa (${formatUsd(available)}). Paga facturas pendientes o reduce el pedido.`,
+        { total: summary.total, available },
+      );
+    }
+
     // El usuario confirma lo que vio: si el total cambió (precios, tarifa de
     // envío), no se crea el pedido.
     if (

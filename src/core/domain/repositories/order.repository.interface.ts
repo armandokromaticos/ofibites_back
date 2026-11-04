@@ -1,11 +1,14 @@
 import { Prisma } from "@prisma/client";
 import { OrderEntity } from "../entities/order.entity";
 import { OrderStatus } from "../enums/order-status.enum";
+import { INVOICE_SUMMARY_INCLUDE } from "./invoice.repository.interface";
 
 export const ORDER_REPOSITORY = Symbol("ORDER_REPOSITORY");
 
 export const ORDER_FULL_INCLUDE = {
   items: { include: { modifiers: true } },
+  // T-06: factura del pedido con su último pago (OrderResponseDto.invoice).
+  invoice: { include: INVOICE_SUMMARY_INCLUDE },
 } as const satisfies Prisma.OrderInclude;
 
 export type OrderVisibilityFilter =
@@ -70,5 +73,16 @@ export interface IOrderRepository {
   findVisible(
     filters: OrderListFilters,
   ): Promise<{ data: OrderEntity[]; total?: number }>;
-  updateStatus(id: string, status: OrderStatus): Promise<OrderEntity>;
+  /**
+   * Transición de estado en una transacción, condicionada a que el pedido siga
+   * en `from` (si no, `InvoiceRuleException("ORDER_STATUS_CHANGED")`). Al pasar
+   * a CONFIRMED emite la factura; al pasar a CANCELLED la anula o, si tiene
+   * pagos aprobados, lanza `InvoiceRuleException("ORDER_HAS_APPROVED_PAYMENTS")`
+   * sin cambiar nada (T-06).
+   */
+  updateStatus(
+    id: string,
+    status: OrderStatus,
+    from: OrderStatus,
+  ): Promise<OrderEntity>;
 }

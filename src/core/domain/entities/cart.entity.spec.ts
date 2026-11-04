@@ -1,5 +1,6 @@
 import { CartEntity, findMatchingCartItem } from "./cart.entity";
 import { CartViewService } from "../../application/services/cart-view.service";
+import type { CompanyBillingService } from "../../application/services/company-billing.service";
 import type { ICartRepository } from "../repositories/cart.repository.interface";
 import type { ICouponRepository } from "../repositories/coupon.repository.interface";
 import type { LineItemPricingService } from "../../application/services/line-item-pricing.service";
@@ -282,6 +283,16 @@ describe("CartViewService · ítems enriquecidos", () => {
       {
         findWithUserUsages: jest.fn(() => Promise.resolve(null)),
       } as unknown as ICouponRepository,
+      {
+        getStatus: jest.fn(() =>
+          Promise.resolve({
+            open: [],
+            overdue: [],
+            alert: null,
+            creditLine: null,
+          }),
+        ),
+      } as unknown as CompanyBillingService,
     );
   }
 

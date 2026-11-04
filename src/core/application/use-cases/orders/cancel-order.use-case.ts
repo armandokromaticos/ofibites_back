@@ -6,11 +6,15 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import type { IOrderRepository } from "../../../domain/repositories/order.repository.interface";
-import { ORDER_REPOSITORY } from "../../../domain/repositories/order.repository.interface";
+import {
+  ORDER_FULL_INCLUDE,
+  ORDER_REPOSITORY,
+} from "../../../domain/repositories/order.repository.interface";
 import { OrderEntity } from "../../../domain/entities/order.entity";
 import { OrderStatus } from "../../../domain/enums/order-status.enum";
 import { Role } from "../../../domain/enums/role.enum";
 import { OrderStatusNotificationService } from "../../services/order-status-notification.service";
+import { withInvoiceHttpErrors } from "../../shared/invoice-errors";
 
 @Injectable()
 export class CancelOrderUseCase {
@@ -27,7 +31,7 @@ export class CancelOrderUseCase {
   ): Promise<OrderEntity> {
     const order = await this.orderRepository.findUnique({
       where: { id: orderId },
-      include: { items: { include: { modifiers: true } } },
+      include: ORDER_FULL_INCLUDE,
     });
     if (!order) {
       throw new NotFoundException(`Order with id ${orderId} not found`);
@@ -43,9 +47,13 @@ export class CancelOrderUseCase {
       );
     }
 
-    const updated = await this.orderRepository.updateStatus(
-      orderId,
-      OrderStatus.CANCELLED,
+    // Con pagos aprobados en la factura → 400 ORDER_HAS_APPROVED_PAYMENTS.
+    const updated = await withInvoiceHttpErrors(() =>
+      this.orderRepository.updateStatus(
+        orderId,
+        OrderStatus.CANCELLED,
+        order.status,
+      ),
     );
     // No lanza. Si cancela el propio dueño del pedido no se le notifica.
     await this.orderStatusNotifications.notifyStatusChange(updated, userId);

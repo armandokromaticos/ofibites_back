@@ -33,6 +33,9 @@ import { GetOrdersUseCase } from "../../core/application/use-cases/orders/get-or
 import { CancelOrderUseCase } from "../../core/application/use-cases/orders/cancel-order.use-case";
 import { UpdateOrderStatusUseCase } from "../../core/application/use-cases/orders/update-order-status.use-case";
 import { RepeatOrderUseCase } from "../../core/application/use-cases/orders/repeat-order.use-case";
+import { INVOICE_REPOSITORY } from "../../core/domain/repositories/invoice.repository.interface";
+import { InvoiceRepository } from "../../core/infrastructure/repositories/invoice.repository";
+import { CompanyBillingService } from "../../core/application/services/company-billing.service";
 
 @Module({
   imports: [
@@ -59,6 +62,8 @@ import { RepeatOrderUseCase } from "../../core/application/use-cases/orders/repe
     },
     { provide: COMBO_REPOSITORY, useClass: ComboRepository },
     { provide: COMPANY_REPOSITORY, useClass: CompanyRepository },
+    { provide: INVOICE_REPOSITORY, useClass: InvoiceRepository },
+    CompanyBillingService,
     LineItemPricingService,
     LineItemAvailabilityService,
     OrderVisibilityResolver,

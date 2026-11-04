@@ -30,6 +30,7 @@ import { InvitationsModule } from "./modules/invitations/invitations.module";
 import { SupportTicketsModule } from "./modules/support-tickets/support-tickets.module";
 import { CatalogModule } from "./modules/catalog/catalog.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
+import { InvoicesModule } from "./modules/invoices/invoices.module";
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { NotificationsModule } from "./modules/notifications/notifications.modul
     SupportTicketsModule,
     CatalogModule,
     NotificationsModule,
+    InvoicesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

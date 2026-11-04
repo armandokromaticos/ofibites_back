@@ -15,6 +15,7 @@ import {
 import { OrderStateMachine } from "../services/order-state-machine";
 import { getOrderStatusGroup } from "../services/order-status-groups";
 import { Money } from "../value-objects/money.vo";
+import { InvoiceEntity, PrismaInvoiceRow } from "./invoice.entity";
 
 // Las columnas del checkout son opcionales para aceptar filas parciales (fixtures).
 type CheckoutOrderColumns =
@@ -40,6 +41,7 @@ type PrismaOrderWithRelations = Omit<PrismaOrder, CheckoutOrderColumns> & {
   items?: (PrismaOrderItem & {
     modifiers?: PrismaOrderItemModifier[];
   })[];
+  invoice?: PrismaInvoiceRow | null;
 };
 
 interface OrderItemModifierInfo {
@@ -86,6 +88,8 @@ interface OrderProps {
   createdAt: Date;
   updatedAt: Date;
   items?: OrderItemInfo[];
+  /** T-06: undefined = no se cargó; null = sin factura. */
+  invoice?: InvoiceEntity | null;
 }
 
 export interface CreateOrderItemModifierParams {
@@ -214,6 +218,9 @@ export class OrderEntity {
   }
   get items(): OrderItemInfo[] | undefined {
     return this.props.items;
+  }
+  get invoice(): InvoiceEntity | null | undefined {
+    return this.props.invoice;
   }
 
   canTransitionTo(status: OrderStatus): boolean {
@@ -394,6 +401,12 @@ export class OrderEntity {
       updatedAt: prisma.updatedAt,
     };
 
+    if (prisma.invoice !== undefined) {
+      props.invoice = prisma.invoice
+        ? InvoiceEntity.fromPrisma(prisma.invoice)
+        : null;
+    }
+
     if (prisma.items) {
       props.items = prisma.items.map((item) => ({
         id: item.id,
@@ -414,7 +427,10 @@ export class OrderEntity {
     return new OrderEntity(props);
   }
 
-  toResponseDto(options?: { maskPrices?: boolean }): OrderResponseDto {
+  toResponseDto(options?: {
+    maskPrices?: boolean;
+    now?: Date;
+  }): OrderResponseDto {
     if (!this.props.id) {
       throw new Error("Cannot convert unpersisted entity to response DTO");
     }
@@ -446,6 +462,11 @@ export class OrderEntity {
     dto.addressReference = this.props.addressReference;
     dto.createdAt = this.props.createdAt;
     dto.updatedAt = this.props.updatedAt;
+    // OPERATOR (maskPrices) no ve facturación.
+    dto.invoice =
+      maskPrices || !this.props.invoice
+        ? null
+        : this.props.invoice.toSummaryDto(options?.now);
 
     if (this.props.items) {
       dto.items = this.props.items.map((item) => {

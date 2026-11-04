@@ -38,6 +38,9 @@ model User {
   supportMessages         SupportMessage[]             @relation("SupportMessagesAuthored")
   notifications           Notification[]
   notificationPreferences NotificationPreference[]
+  invoicePaymentsSubmitted InvoicePayment[]       @relation("InvoicePaymentSubmittedBy")
+  invoicePaymentsReviewed  InvoicePayment[]       @relation("InvoicePaymentReviewedBy")
+  fiscalPdfsUploaded       Invoice[]              @relation("InvoiceFiscalPdfUploadedBy")
 
   @@map("users")
 }
@@ -363,6 +366,7 @@ model Order {
   items           OrderItem[]
   couponUsage     CouponUsage?
   notifications   Notification[]
+  invoice         Invoice?
 
   @@index([userId])
   @@index([companyId])
@@ -410,6 +414,8 @@ model Company {
   fiscalName            String?   @map("fiscal_name")
   fiscalAddress         String?   @map("fiscal_address")
   creditDays            Int       @default(0) @map("credit_days")
+  // T-06: cupo de la línea de crédito (USD). null = sin tope. Solo aplica con creditDays > 0.
+  creditLimit           Decimal?  @map("credit_limit") @db.Decimal(10, 2)
   isActive              Boolean   @default(true) @map("is_active")
   // T-34a: onboarding del cliente. null = el COMPANY_ADMIN aún no lo completó
   // (las empresas existentes se marcaron completadas en la migración).
@@ -427,6 +433,7 @@ model Company {
   cart                Cart?
   supportTickets      SupportTicket[]
   notifications       Notification[]
+  invoices            Invoice[]
 
   @@map("companies")
 }
@@ -876,6 +883,8 @@ model SectionItem {
 
 enum NotificationType {
   ORDER_STATUS
+  INVOICE_GENERATED
+  PAYMENT_STATUS_CHANGED
 }
 
 // Notificación de un usuario (dropdown de la campana). `message` se guarda ya
@@ -890,17 +899,20 @@ model Notification {
   link        String?
   orderId     String?          @map("order_id")
   orderStatus OrderStatus?     @map("order_status")
+  invoiceId   String?          @map("invoice_id")
   readAt      DateTime?        @map("read_at")
   createdAt   DateTime         @default(now()) @map("created_at")
 
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
   order   Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  invoice Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
   @@index([orderId])
   @@index([companyId])
+  @@index([invoiceId])
   @@map("notifications")
 }
 
@@ -940,4 +952,116 @@ model NotificationPreference {
   @@unique([userId, type])
   @@index([userId])
   @@map("notification_preferences")
+}
+
+// ============================================
+// INVOICES (T-06): factura automática al confirmar el pedido + pagos manuales
+// ============================================
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  VOID
+}
+
+// Estado de cada registro de pago (comprobante). El estado de pago "visible"
+// de la factura (IN_REVIEW, OVERDUE…) se deriva en el dominio.
+enum InvoicePaymentRecordStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+enum PaymentMethod {
+  MOBILE_PAYMENT
+  TRANSFER_VES
+  TRANSFER_USD
+  ZELLE
+}
+
+// Una por pedido, emitida en la transacción que lo pasa a CONFIRMED. Importes
+// y datos fiscales son una foto del momento de la emisión. Número proforma
+// F-AAAA-NNNN (no fiscal); el fiscal, si Ofibites lo sube, va en fiscalNumber.
+model Invoice {
+  id                    String        @id @default(uuid())
+  invoiceNumber         String        @unique @map("invoice_number")
+  orderId               String        @unique @map("order_id")
+  companyId             String        @map("company_id")
+  status                InvoiceStatus @default(PENDING)
+  issuedAt              DateTime      @default(now()) @map("issued_at")
+  // @db.Date: medianoche UTC de la fecha de Caracas, como Order.deliveryDate.
+  dueDate               DateTime      @map("due_date") @db.Date
+  creditDays            Int           @map("credit_days")
+  subtotal              Decimal       @db.Decimal(10, 2)
+  discount              Decimal       @db.Decimal(10, 2)
+  tax                   Decimal       @db.Decimal(10, 2)
+  shipping              Decimal       @db.Decimal(10, 2)
+  total                 Decimal       @db.Decimal(10, 2)
+  amountPaid            Decimal       @default(0) @map("amount_paid") @db.Decimal(10, 2)
+  paidAt                DateTime?     @map("paid_at")
+  voidedAt              DateTime?     @map("voided_at")
+  billingName           String        @map("billing_name")
+  billingTaxId          String        @map("billing_tax_id")
+  billingAddress        String?       @map("billing_address")
+  fiscalPdfPath         String?       @map("fiscal_pdf_path")
+  fiscalNumber          String?       @map("fiscal_number")
+  fiscalPdfUploadedAt   DateTime?     @map("fiscal_pdf_uploaded_at")
+  fiscalPdfUploadedById String?       @map("fiscal_pdf_uploaded_by_id")
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
+
+  order               Order            @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  company             Company          @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  fiscalPdfUploadedBy User?            @relation("InvoiceFiscalPdfUploadedBy", fields: [fiscalPdfUploadedById], references: [id], onDelete: SetNull)
+  payments            InvoicePayment[]
+  notifications       Notification[]
+
+  @@index([companyId, status, dueDate])
+  @@index([fiscalPdfUploadedById])
+  @@map("invoices")
+}
+
+// Registro de pago manual con comprobante. Como mucho uno PENDING_REVIEW por
+// factura: índice único parcial creado en el SQL de la migración
+// (invoice_payments_one_pending), que Prisma no sabe expresar.
+model InvoicePayment {
+  id              String                     @id @default(uuid())
+  invoiceId       String                     @map("invoice_id")
+  status          InvoicePaymentRecordStatus @default(PENDING_REVIEW)
+  method          PaymentMethod
+  bank            String?
+  reference       String
+  // Siempre USD, como la factura (sin tasa BCV).
+  amount          Decimal                    @db.Decimal(10, 2)
+  paymentDate     DateTime                   @map("payment_date") @db.Date
+  proofPath       String                     @map("proof_path")
+  proofFileName   String                     @map("proof_file_name")
+  proofMimeType   String                     @map("proof_mime_type")
+  proofSizeBytes  Int                        @map("proof_size_bytes")
+  submittedById   String                     @map("submitted_by_id")
+  submittedAt     DateTime                   @default(now()) @map("submitted_at")
+  reviewedById    String?                    @map("reviewed_by_id")
+  reviewedAt      DateTime?                  @map("reviewed_at")
+  rejectionReason String?                    @map("rejection_reason")
+  withdrawnAt     DateTime?                  @map("withdrawn_at")
+
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  submittedBy User    @relation("InvoicePaymentSubmittedBy", fields: [submittedById], references: [id], onDelete: Restrict)
+  reviewedBy  User?   @relation("InvoicePaymentReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId, submittedAt])
+  @@index([status, submittedAt])
+  @@index([submittedById])
+  @@index([reviewedById])
+  @@map("invoice_payments")
+}
+
+// Contador de Invoice.invoiceNumber por año de Caracas (mismo patrón que
+// OrderNumberCounter).
+model InvoiceNumberCounter {
+  year      Int @id
+  lastValue Int @default(0) @map("last_value")
+
+  @@map("invoice_number_counters")
 }

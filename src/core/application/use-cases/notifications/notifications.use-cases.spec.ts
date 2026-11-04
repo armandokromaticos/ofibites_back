@@ -266,6 +266,7 @@ describe("NotificationEntity.toResponseDto", () => {
       orderId: "0f8fad5b-d9cb-469f-a165-70867728950e",
       orderNumber: "7728950E",
       orderStatus: "IN_TRANSIT",
+      invoiceId: null,
       companyId: "c1",
       readAt: null,
       createdAt: "2026-10-16T14:00:00.000Z",
