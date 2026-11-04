@@ -51,9 +51,10 @@ export function avatarPathFromUrl(
 }
 
 /**
- * Reintenta una vez tras una espera corta. Mitiga fallos transitorios del
- * pooler de conexiones de Storage (p. ej. "row-level security" espurio en
- * una conexión reciclada) que no se repiten en una conexión nueva.
+ * Reintenta una vez tras una espera corta ante fallos transitorios de Storage.
+ * El "row-level security" intermitente no era transitorio: venía de login y
+ * refresh iniciando sesión sobre el cliente admin compartido (ya corregido,
+ * usan `createEphemeralClient()`); este reintento no lo habría resuelto.
  */
 export async function withStorageRetry<T>(fn: () => Promise<T>): Promise<T> {
   try {

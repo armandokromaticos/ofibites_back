@@ -31,7 +31,9 @@ export class LoginUseCase {
 
   async execute(dto: LoginDto): Promise<AuthResponseDto> {
     this.logger.log("Intento de login");
-    const supabase = this.supabaseService.getAdmin();
+    // Cliente efímero: iniciar sesión sobre el admin compartido le deja el JWT
+    // del usuario y Storage/PostgREST dejan de usar la service_role (RLS).
+    const supabase = this.supabaseService.createEphemeralClient();
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email: dto.email,
