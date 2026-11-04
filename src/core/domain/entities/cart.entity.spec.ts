@@ -1,6 +1,7 @@
 import { CartEntity, findMatchingCartItem } from "./cart.entity";
 import { CartViewService } from "../../application/services/cart-view.service";
 import type { ICartRepository } from "../repositories/cart.repository.interface";
+import type { ICouponRepository } from "../repositories/coupon.repository.interface";
 import type { LineItemPricingService } from "../../application/services/line-item-pricing.service";
 import { Lang } from "../enums/lang.enum";
 
@@ -44,6 +45,7 @@ function cartWith(items: ReturnType<typeof item>[]) {
   return CartEntity.fromPrisma({
     id: "cart-1",
     companyId: "company-1",
+    couponId: null,
     createdAt: NOW,
     updatedAt: NOW,
     items: items as never,
@@ -77,7 +79,34 @@ describe("CartEntity · datos de presentación y disponibilidad", () => {
       sizeNameEn: null,
       servings: null,
       isAvailable: true,
+      tags: [],
     });
+  });
+
+  it("producto con tags: los copia con su nombre bilingüe", () => {
+    const [line] = cartWith([
+      item({
+        product: product({
+          tags: [{ tag: { nameEs: "Sin gluten", nameEn: "Gluten free" } }],
+        }),
+      }),
+    ]).items;
+    expect(line.display?.tags).toEqual([
+      { nameEs: "Sin gluten", nameEn: "Gluten free" },
+    ]);
+  });
+
+  it("combo: sin tags aunque el producto ancla los tenga", () => {
+    const [line] = cartWith([
+      item({
+        comboId: "c-1",
+        combo,
+        product: product({
+          tags: [{ tag: { nameEs: "Sin gluten", nameEn: null } }],
+        }),
+      }),
+    ]).items;
+    expect(line.display?.tags).toEqual([]);
   });
 
   it("con tamaño: nombre del tamaño y personas", () => {
@@ -250,6 +279,9 @@ describe("CartViewService · ítems enriquecidos", () => {
     return new CartViewService(
       repo as unknown as ICartRepository,
       pricing as unknown as LineItemPricingService,
+      {
+        findWithUserUsages: jest.fn(() => Promise.resolve(null)),
+      } as unknown as ICouponRepository,
     );
   }
 
@@ -267,7 +299,7 @@ describe("CartViewService · ítems enriquecidos", () => {
       }),
     ]);
 
-    const es = await view(cart).build("company-1");
+    const es = await view(cart).build("company-1", "user-1");
     expect(es.items[0]).toMatchObject({
       name: "Wrap de pollo",
       image: "https://cdn/wrap.png",
@@ -283,11 +315,43 @@ describe("CartViewService · ítems enriquecidos", () => {
       isAvailable: false,
     });
 
-    const en = await view(cart).build("company-1", Lang.EN);
+    const en = await view(cart).build("company-1", "user-1", Lang.EN);
     expect(en.items[0]).toMatchObject({
       name: "Chicken wrap",
       sizeLabel: "Large tray",
     });
+  });
+
+  it("tags: nombres en el idioma pedido, ordenados; [] sin tags y en combos", async () => {
+    const tags = [
+      { tag: { nameEs: "Sin gluten", nameEn: "Gluten free" } },
+      { tag: { nameEs: "Opción vegetariana", nameEn: "Vegetarian option" } },
+      { tag: { nameEs: "Sin azúcar añadida", nameEn: null } },
+    ];
+    const cart = cartWith([
+      item({ product: product({ tags }) }),
+      item({ id: "item-2", product: product({ tags: [] }) }),
+      item({
+        id: "item-3",
+        comboId: "c-1",
+        combo,
+        product: product({ tags }),
+      }),
+    ]);
+
+    const es = await view(cart).build("company-1", "user-1");
+    expect(es.items.map((i) => i.tags)).toEqual([
+      ["Opción vegetariana", "Sin azúcar añadida", "Sin gluten"],
+      [],
+      [],
+    ]);
+
+    const en = await view(cart).build("company-1", "user-1", Lang.EN);
+    expect(en.items[0].tags).toEqual([
+      "Gluten free",
+      "Sin azúcar añadida",
+      "Vegetarian option",
+    ]);
   });
 
   it("en inglés cae al español si falta la traducción", async () => {
@@ -298,7 +362,7 @@ describe("CartViewService · ítems enriquecidos", () => {
         productSize: size,
       }),
     ]);
-    const en = await view(cart).build("company-1", Lang.EN);
+    const en = await view(cart).build("company-1", "user-1", Lang.EN);
     expect(en.items[0]).toMatchObject({
       name: "Wrap de pollo",
       sizeLabel: "Bandeja grande",

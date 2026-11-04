@@ -19,6 +19,35 @@ import type {
 } from "../../services/line-item-pricing.service";
 import type { LineItemAvailabilityService } from "../../services/line-item-availability.service";
 import { CheckoutOrderDto } from "../../dto/orders/checkout-order.dto";
+import type { ICouponRepository } from "../../../domain/repositories/coupon.repository.interface";
+import { CouponEntity } from "../../../domain/entities/coupon.entity";
+import { CouponType } from "../../../domain/enums/coupon-type.enum";
+import { CouponUnavailableException } from "../../../domain/exceptions/coupon-unavailable.exception";
+
+const DAY = 24 * 60 * 60 * 1000;
+
+function coupon(
+  overrides: Partial<ConstructorParameters<typeof CouponEntity>[0]> = {},
+): CouponEntity {
+  return new CouponEntity({
+    id: "coupon-1",
+    type: CouponType.UNIQUE,
+    nameEs: "OFI10",
+    nameEn: null,
+    discountPercent: 10,
+    maxDiscount: 50,
+    totalQuantity: 10,
+    usedQuantity: 0,
+    // Relativo a la hora real: isValid() compara con new Date().
+    expiresAt: new Date(Date.now() + DAY),
+    isActive: true,
+    companyId: "company-1",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    usages: [],
+    ...overrides,
+  });
+}
 
 const COMPANY = "company-1";
 const ACTOR = { id: "user-1", role: Role.CLIENT };
@@ -50,14 +79,19 @@ function cartItem(
       sizeNameEn: null,
       servings: null,
       isAvailable: true,
+      tags: [],
     },
   } as CartItemInfo;
 }
 
-function cart(items: CartItemInfo[]): CartEntity {
+function cart(
+  items: CartItemInfo[],
+  couponId: string | null = null,
+): CartEntity {
   return new CartEntity({
     id: "cart-1",
     companyId: COMPANY,
+    couponId,
     items,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -69,7 +103,7 @@ function persisted(entity: OrderEntity): OrderEntity {
   return new OrderEntity({
     id: "order-1",
     userId: entity.userId,
-    couponId: null,
+    couponId: entity.couponId,
     companyId: entity.companyId,
     branchId: null,
     departmentId: null,
@@ -103,6 +137,9 @@ function setup(
     unavailable?: string[];
     /** productId → error con que falla su cotización. */
     priceErrors?: Record<string, Error>;
+    /** Cupón aplicado al carrito (lo que devuelve el repositorio de cupones). */
+    coupon?: CouponEntity | null;
+    couponId?: string | null;
   } = {},
 ) {
   const items = options.items ?? [
@@ -115,7 +152,16 @@ function setup(
     ),
   };
   const cartRepository = {
-    getOrCreateViewByCompanyId: jest.fn(() => Promise.resolve(cart(items))),
+    getOrCreateViewByCompanyId: jest.fn(() =>
+      Promise.resolve(
+        cart(
+          items,
+          options.couponId !== undefined
+            ? options.couponId
+            : (options.coupon?.id ?? null),
+        ),
+      ),
+    ),
   };
   const addressRepository = {
     findUnique: jest.fn(() =>
@@ -147,6 +193,9 @@ function setup(
       ),
     ),
   };
+  const couponRepository = {
+    findWithUserUsages: jest.fn(() => Promise.resolve(options.coupon ?? null)),
+  };
   const unavailable = new Set(options.unavailable ?? []);
   const availability = {
     checkMany: jest.fn((inputs: LineItemInput[]) =>
@@ -168,8 +217,16 @@ function setup(
     addressRepository as unknown as ICompanyAddressRepository,
     pricing as unknown as LineItemPricingService,
     availability as unknown as LineItemAvailabilityService,
+    couponRepository as unknown as ICouponRepository,
   );
-  return { useCase, orderRepository, cartRepository, pricing, availability };
+  return {
+    useCase,
+    orderRepository,
+    cartRepository,
+    pricing,
+    availability,
+    couponRepository,
+  };
 }
 
 const dto = (overrides: Partial<CheckoutOrderDto> = {}): CheckoutOrderDto =>
@@ -242,6 +299,7 @@ describe("CheckoutOrderUseCase", () => {
           { id: "ci-1", quantity: 2 },
           { id: "ci-2", quantity: 1 },
         ],
+        couponId: null,
       },
     );
   });
@@ -615,5 +673,108 @@ describe("CheckoutOrderUseCase", () => {
     await expect(useCase.execute(COMPANY, ACTOR, dto(), NOW)).rejects.toThrow(
       "BD caída",
     );
+  });
+
+  describe("cupón del carrito", () => {
+    it("válido → descuento en el total, couponId en el pedido y en el snapshot para consumirlo", async () => {
+      const { useCase, orderRepository, couponRepository } = setup({
+        coupon: coupon(),
+      });
+
+      const order = await useCase.execute(COMPANY, ACTOR, dto(), NOW);
+
+      expect(couponRepository.findWithUserUsages).toHaveBeenCalledWith(
+        { id: "coupon-1" },
+        ACTOR.id,
+      );
+      // 112,5 − 11,25 = 101,25 → IVA 16,20; envío 5; total 122,45
+      expect(order.couponId).toBe("coupon-1");
+      expect(order.subtotal).toBe(112.5);
+      expect(order.discount).toBe(11.25);
+      expect(order.tax).toBe(16.2);
+      expect(order.shipping).toBe(5);
+      expect(order.total).toBe(122.45);
+      expect(orderRepository.createFromCart).toHaveBeenCalledWith(
+        expect.any(OrderEntity),
+        expect.objectContaining({ couponId: "coupon-1" }),
+      );
+    });
+
+    it("expectedTotal se compara con el total ya descontado", async () => {
+      const { useCase } = setup({ coupon: coupon() });
+      await expect(
+        useCase.execute(COMPANY, ACTOR, dto({ expectedTotal: 122.45 }), NOW),
+      ).resolves.toBeInstanceOf(OrderEntity);
+    });
+
+    it.each([
+      ["vencido", { expiresAt: new Date(Date.now() - DAY) }],
+      ["inactivo", { isActive: false }],
+      ["sin usos", { usedQuantity: 10 }],
+      ["de otra empresa", { companyId: "company-2" }],
+      [
+        "ya usado por quien confirma",
+        {
+          usages: [
+            {
+              id: "u-1",
+              userId: ACTOR.id,
+              orderId: "order-0",
+              usedAt: new Date(),
+            },
+          ],
+        },
+      ],
+    ])(
+      "%s → 400 COUPON_INVALID sin crear el pedido",
+      async (_label, overrides) => {
+        const { useCase, orderRepository } = setup({
+          coupon: coupon(overrides),
+        });
+        const error = await useCase
+          .execute(COMPANY, ACTOR, dto(), NOW)
+          .catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(BadRequestException);
+        expect((error as HttpException).getResponse()).toEqual({
+          statusCode: 400,
+          error: "Bad Request",
+          message:
+            "El código aplicado ya no está vigente. Quítalo para continuar.",
+          code: "COUPON_INVALID",
+        });
+        expect(orderRepository.createFromCart).not.toHaveBeenCalled();
+      },
+    );
+
+    it("cupón borrado (el carrito aún lo referencia) → 400 COUPON_INVALID", async () => {
+      const { useCase, orderRepository } = setup({
+        couponId: "coupon-1",
+        coupon: null,
+      });
+      await expect(
+        useCase.execute(COMPANY, ACTOR, dto(), NOW),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(orderRepository.createFromCart).not.toHaveBeenCalled();
+    });
+
+    it("si la transacción no puede consumirlo (carrera) → 400 COUPON_INVALID", async () => {
+      const { useCase, orderRepository } = setup({ coupon: coupon() });
+      orderRepository.createFromCart.mockRejectedValueOnce(
+        new CouponUnavailableException("coupon-1"),
+      );
+      const error = await useCase
+        .execute(COMPANY, ACTOR, dto(), NOW)
+        .catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(BadRequestException);
+      expect((error as HttpException).getResponse()).toMatchObject({
+        code: "COUPON_INVALID",
+      });
+    });
+
+    it("sin cupón no consulta cupones", async () => {
+      const { useCase, couponRepository } = setup();
+      await useCase.execute(COMPANY, ACTOR, dto(), NOW);
+      expect(couponRepository.findWithUserUsages).not.toHaveBeenCalled();
+    });
   });
 });

@@ -15,10 +15,11 @@ export class ClearCartUseCase {
 
   async execute(
     companyId: string,
+    userId: string,
     lang: Lang = Lang.ES,
   ): Promise<CartResponseDto> {
     const cart = await this.cartRepository.getOrCreateByCompanyId(companyId);
     await this.cartRepository.clear(cart.id);
-    return this.cartView.build(companyId, lang);
+    return this.cartView.build(companyId, userId, lang);
   }
 }

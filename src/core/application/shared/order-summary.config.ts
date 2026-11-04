@@ -5,6 +5,7 @@ import {
   OrderSummary,
   parseShippingFlatFee,
 } from "../../domain/services/order-summary";
+import type { CouponEntity } from "../../domain/entities/coupon.entity";
 
 const logger = new Logger("OrderSummaryConfig");
 /** Último valor inválido avisado: un aviso por valor, no uno por cada carrito. */
@@ -37,4 +38,18 @@ export function buildOrderSummary(
     discount,
     shippingFlatFee: shippingFlatFee(),
   });
+}
+
+/**
+ * Resumen con el descuento de un cupón ya validado (`couponRejectionFor`):
+ * `calculateDiscount` sobre el subtotal sumado en céntimos. Sin cupón, igual
+ * que `buildOrderSummary`. Lo usan la vista del carrito y el checkout.
+ */
+export function buildOrderSummaryWithCoupon(
+  lineSubtotals: number[],
+  coupon: Pick<CouponEntity, "calculateDiscount"> | null,
+): OrderSummary {
+  if (!coupon) return buildOrderSummary(lineSubtotals);
+  const { subtotal } = buildOrderSummary(lineSubtotals);
+  return buildOrderSummary(lineSubtotals, coupon.calculateDiscount(subtotal));
 }

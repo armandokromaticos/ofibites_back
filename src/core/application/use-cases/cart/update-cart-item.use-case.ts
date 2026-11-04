@@ -21,6 +21,7 @@ export class UpdateCartItemUseCase {
 
   async execute(
     companyId: string,
+    userId: string,
     itemId: string,
     dto: UpdateCartItemDto,
     lang: Lang = Lang.ES,
@@ -38,6 +39,6 @@ export class UpdateCartItemUseCase {
     }
 
     await this.cartRepository.updateItemQuantity(itemId, dto.quantity);
-    return this.cartView.build(companyId, lang);
+    return this.cartView.build(companyId, userId, lang);
   }
 }

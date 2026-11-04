@@ -138,6 +138,19 @@ export class CartRepository implements ICartRepository {
   }
 
   async clear(cartId: string): Promise<void> {
-    await this.prisma.cartItem.deleteMany({ where: { cartId } });
+    await this.prisma.$transaction([
+      this.prisma.cartItem.deleteMany({ where: { cartId } }),
+      this.prisma.cart.update({
+        where: { id: cartId },
+        data: { couponId: null },
+      }),
+    ]);
+  }
+
+  async setCoupon(cartId: string, couponId: string | null): Promise<void> {
+    await this.prisma.cart.update({
+      where: { id: cartId },
+      data: { couponId },
+    });
   }
 }

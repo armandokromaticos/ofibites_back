@@ -6,6 +6,60 @@ import {
   ICouponRepository,
 } from "../../domain/repositories/coupon.repository.interface";
 import { CouponEntity } from "../../domain/entities/coupon.entity";
+import { CouponUnavailableException } from "../../domain/exceptions/coupon-unavailable.exception";
+
+export interface ConsumeCouponParams {
+  couponId: string;
+  userId: string;
+  orderId: string;
+  /** Si viene, el cupón debe ser global o de esta empresa. */
+  companyId?: string;
+}
+
+/**
+ * Consume un uso del cupón dentro de la transacción `tx` (la del pedido en el
+ * checkout): suma `usedQuantity` con un UPDATE condicionado que revalida en la
+ * BD que siga activo, sin vencer, con usos y (si se pasa) de la empresa, y
+ * registra el `CouponUsage`. Si no cuadra, o el usuario ya lo usó (unique
+ * couponId+userId), lanza `CouponUnavailableException` y el llamador revierte.
+ */
+export async function consumeCouponWithin(
+  tx: Prisma.TransactionClient,
+  params: ConsumeCouponParams,
+): Promise<void> {
+  const updated = await tx.coupon.updateMany({
+    where: {
+      id: params.couponId,
+      isActive: true,
+      expiresAt: { gt: new Date() },
+      usedQuantity: { lt: tx.coupon.fields.totalQuantity },
+      ...(params.companyId
+        ? { OR: [{ companyId: null }, { companyId: params.companyId }] }
+        : {}),
+    },
+    data: { usedQuantity: { increment: 1 } },
+  });
+  if (updated.count === 0) {
+    throw new CouponUnavailableException(params.couponId);
+  }
+  try {
+    await tx.couponUsage.create({
+      data: {
+        couponId: params.couponId,
+        userId: params.userId,
+        orderId: params.orderId,
+      },
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      throw new CouponUnavailableException(params.couponId);
+    }
+    throw error;
+  }
+}
 
 @Injectable()
 export class CouponRepository implements ICouponRepository {
@@ -68,15 +122,19 @@ export class CouponRepository implements ICouponRepository {
     userId: string,
     orderId: string,
   ): Promise<void> {
-    await this.prisma.$transaction(async (prisma) => {
-      await prisma.couponUsage.create({
-        data: { couponId, userId, orderId },
-      });
-      const updated =
-        await prisma.$executeRaw`UPDATE coupons SET used_quantity = used_quantity + 1 WHERE id = ${couponId}::uuid AND used_quantity < total_quantity`;
-      if (updated === 0) {
-        throw new Error("Coupon has no remaining uses");
-      }
+    await this.prisma.$transaction((tx) =>
+      consumeCouponWithin(tx, { couponId, userId, orderId }),
+    );
+  }
+
+  async findWithUserUsages(
+    where: Prisma.CouponWhereUniqueInput,
+    userId: string,
+  ): Promise<CouponEntity | null> {
+    const coupon = await this.prisma.coupon.findUnique({
+      where,
+      include: { usages: { where: { userId } } },
     });
+    return coupon ? CouponEntity.fromPrisma(coupon) : null;
   }
 }

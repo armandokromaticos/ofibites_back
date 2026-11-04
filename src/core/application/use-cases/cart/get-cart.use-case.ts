@@ -9,8 +9,9 @@ export class GetCartUseCase {
 
   async execute(
     companyId: string,
+    userId: string,
     lang: Lang = Lang.ES,
   ): Promise<CartResponseDto> {
-    return this.cartView.build(companyId, lang);
+    return this.cartView.build(companyId, userId, lang);
   }
 }
