@@ -26,6 +26,8 @@ export class UpdateBannerUseCase {
     const data: Prisma.BannerUpdateInput = {};
 
     if (dto.title !== undefined) data.title = dto.title;
+    // null (o "" ya convertido a null por el DTO) borra el subtítulo.
+    if (dto.subtitle !== undefined) data.subtitle = dto.subtitle;
     if (dto.imageUrl !== undefined) data.imageUrl = dto.imageUrl;
     if (dto.imageMobileUrl !== undefined) {
       data.imageMobileUrl = dto.imageMobileUrl;

@@ -4,6 +4,7 @@ import { BannerResponseDto } from "../../application/dto/banners/banner-response
 interface BannerProps {
   id: string | undefined;
   title: string | null;
+  subtitle: string | null;
   imageUrl: string | null;
   imageMobileUrl: string | null;
   altText: string;
@@ -20,6 +21,7 @@ interface BannerProps {
 
 export interface CreateBannerParams {
   title?: string;
+  subtitle?: string | null;
   imageUrl: string;
   imageMobileUrl?: string;
   altText: string;
@@ -44,6 +46,9 @@ export class BannerEntity {
   }
   get title(): string | null {
     return this.props.title;
+  }
+  get subtitle(): string | null {
+    return this.props.subtitle;
   }
   get imageUrl(): string | null {
     return this.props.imageUrl;
@@ -94,6 +99,7 @@ export class BannerEntity {
     return new BannerEntity({
       id: undefined,
       title: params.title ?? null,
+      subtitle: params.subtitle ?? null,
       imageUrl: params.imageUrl,
       imageMobileUrl: params.imageMobileUrl ?? null,
       altText: params.altText,
@@ -113,6 +119,7 @@ export class BannerEntity {
     return new BannerEntity({
       id: prisma.id,
       title: prisma.title,
+      subtitle: prisma.subtitle,
       imageUrl: prisma.imageUrl,
       imageMobileUrl: prisma.imageMobileUrl,
       altText: prisma.altText,
@@ -131,6 +138,7 @@ export class BannerEntity {
   toPrismaCreate(): Prisma.BannerCreateInput {
     return {
       title: this.props.title,
+      subtitle: this.props.subtitle,
       imageUrl: this.props.imageUrl,
       imageMobileUrl: this.props.imageMobileUrl,
       altText: this.props.altText,
@@ -151,6 +159,7 @@ export class BannerEntity {
     const dto = new BannerResponseDto();
     dto.id = this.props.id;
     dto.title = this.props.title;
+    dto.subtitle = this.props.subtitle;
     dto.imageUrl = this.props.imageUrl;
     dto.imageMobileUrl = this.props.imageMobileUrl;
     dto.altText = this.props.altText;

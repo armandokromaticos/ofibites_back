@@ -21,6 +21,7 @@ export class CreateBannerUseCase {
 
     const entity = BannerEntity.fromCreateDto({
       title: dto.title,
+      subtitle: dto.subtitle,
       imageUrl: dto.imageUrl,
       imageMobileUrl: dto.imageMobileUrl,
       altText: dto.altText,
