@@ -72,7 +72,7 @@ export function toSkipReason(code: LineAvailabilityCode): string {
 }
 
 /**
- * Copia al carrito de la empresa las líneas de un pedido que sigan
+ * Copia al carrito del usuario en la empresa las líneas de un pedido que sigan
  * disponibles (mismas reglas que `POST /cart/items`). No crea pedido: eso es
  * `RepeatOrderUseCase` (`POST /orders/:id/repeat`).
  */
@@ -149,7 +149,7 @@ export class RepeatOrderIntoCartUseCase {
       );
     }
 
-    await this.cartRepository.addItemsAtomically(companyId, lines);
+    await this.cartRepository.addItemsAtomically(companyId, actor.id, lines);
 
     const response = new RepeatOrderIntoCartResponseDto();
     response.cart = await this.cartView.build(companyId, actor.id, lang);

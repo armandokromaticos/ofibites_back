@@ -30,12 +30,13 @@ export class UpdateCartItemUseCase {
       companyRepository: this.companyRepository,
     });
 
-    const cart = await this.cartRepository.getOrCreateByCompanyId(companyId);
+    const cart = await this.cartRepository.getOrCreateForUser(
+      companyId,
+      userId,
+    );
     const item = cart.items.find((cartItem) => cartItem.id === itemId);
     if (!item) {
-      throw new NotFoundException(
-        `Cart item ${itemId} not found in this company's cart`,
-      );
+      throw new NotFoundException(`La línea ${itemId} no está en tu carrito`);
     }
 
     await this.cartRepository.updateItemQuantity(itemId, dto.quantity);

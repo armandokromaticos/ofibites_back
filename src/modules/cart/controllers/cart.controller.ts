@@ -60,7 +60,7 @@ const CART_ACCESS = {
   name: "X-Company-Id",
   required: true,
   description:
-    "Empresa dueña del carrito (carrito único y compartido por empresa).",
+    "Empresa activa. Cada usuario tiene su propio carrito dentro de cada empresa (T-35).",
 })
 @Controller("cart")
 @UseGuards(JwtAuthGuard, PlatformOrCompanyRoleGuard)
@@ -79,7 +79,7 @@ export class CartController {
   @Get()
   @PlatformOrCompanyRole(CART_ACCESS)
   @ApiOperation({
-    summary: "Obtener el carrito de la empresa (con precios vigentes)",
+    summary: "Obtener mi carrito en la empresa (con precios vigentes)",
   })
   async getCart(
     @Query() query: CartLangQueryDto,
@@ -151,7 +151,7 @@ export class CartController {
   @HttpCode(200)
   @PlatformOrCompanyRole(CART_ACCESS)
   @ApiOperation({
-    summary: "Vaciar el carrito de la empresa (también quita el cupón)",
+    summary: "Vaciar mi carrito en la empresa (también quita el cupón)",
   })
   async clear(
     @Query() query: CartLangQueryDto,

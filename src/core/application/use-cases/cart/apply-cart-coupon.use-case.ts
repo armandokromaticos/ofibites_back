@@ -54,7 +54,10 @@ export class ApplyCartCouponUseCase {
       companyRepository: this.companyRepository,
     });
 
-    const cart = await this.cartRepository.getOrCreateByCompanyId(companyId);
+    const cart = await this.cartRepository.getOrCreateForUser(
+      companyId,
+      userId,
+    );
     if (cart.items.length === 0) {
       throw new BadRequestException(CART_COUPON_EMPTY_CART_MESSAGE);
     }

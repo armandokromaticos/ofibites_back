@@ -46,6 +46,7 @@ function cartWith(items: ReturnType<typeof item>[]) {
   return CartEntity.fromPrisma({
     id: "cart-1",
     companyId: "company-1",
+    userId: "user-1",
     couponId: null,
     createdAt: NOW,
     updatedAt: NOW,
@@ -268,7 +269,7 @@ describe("CartEntity · datos de presentación y disponibilidad", () => {
 describe("CartViewService · ítems enriquecidos", () => {
   function view(cart: CartEntity) {
     const repo = {
-      getOrCreateViewByCompanyId: jest.fn(() => Promise.resolve(cart)),
+      getOrCreateViewForUser: jest.fn(() => Promise.resolve(cart)),
     };
     const pricing = {
       priceLines: jest.fn((inputs: unknown[]) =>

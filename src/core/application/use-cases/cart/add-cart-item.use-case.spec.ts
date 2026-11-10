@@ -10,7 +10,7 @@ import { AddCartItemDto } from "../../dto/cart/add-cart-item.dto";
 function setup(availabilityError?: Error) {
   const cart = { id: "cart-1", findMatchingItem: jest.fn(() => undefined) };
   const cartRepository = {
-    getOrCreateByCompanyId: jest.fn(() => Promise.resolve(cart)),
+    getOrCreateForUser: jest.fn(() => Promise.resolve(cart)),
     addItem: jest.fn(() => Promise.resolve()),
     incrementItemQuantity: jest.fn(() => Promise.resolve()),
   };

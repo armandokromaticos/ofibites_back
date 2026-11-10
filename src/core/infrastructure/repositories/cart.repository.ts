@@ -35,33 +35,50 @@ function toCartItemCreate(
   };
 }
 
+/** Clave única del carrito (T-35): uno por usuario dentro de cada empresa. */
+function ownerWhere(
+  companyId: string,
+  userId: string,
+): Prisma.CartWhereUniqueInput {
+  return { companyId_userId: { companyId, userId } };
+}
+
 @Injectable()
 export class CartRepository implements ICartRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getOrCreateByCompanyId(companyId: string): Promise<CartEntity> {
+  async getOrCreateForUser(
+    companyId: string,
+    userId: string,
+  ): Promise<CartEntity> {
     const cart = await this.prisma.cart.upsert({
-      where: { companyId },
-      create: { companyId },
+      where: ownerWhere(companyId, userId),
+      create: { companyId, userId },
       update: {},
       include: CART_ITEMS_INCLUDE,
     });
     return CartEntity.fromPrisma(cart);
   }
 
-  async getOrCreateViewByCompanyId(companyId: string): Promise<CartEntity> {
+  async getOrCreateViewForUser(
+    companyId: string,
+    userId: string,
+  ): Promise<CartEntity> {
     const cart = await this.prisma.cart.upsert({
-      where: { companyId },
-      create: { companyId },
+      where: ownerWhere(companyId, userId),
+      create: { companyId, userId },
       update: {},
       include: CART_FULL_INCLUDE,
     });
     return CartEntity.fromPrisma(cart);
   }
 
-  async findByCompanyId(companyId: string): Promise<CartEntity | null> {
+  async findForUser(
+    companyId: string,
+    userId: string,
+  ): Promise<CartEntity | null> {
     const cart = await this.prisma.cart.findUnique({
-      where: { companyId },
+      where: ownerWhere(companyId, userId),
       include: CART_ITEMS_INCLUDE,
     });
     return cart ? CartEntity.fromPrisma(cart) : null;
@@ -75,12 +92,13 @@ export class CartRepository implements ICartRepository {
 
   async addItemsAtomically(
     companyId: string,
+    userId: string,
     lines: AddCartItemParams[],
   ): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       const cart = await tx.cart.upsert({
-        where: { companyId },
-        create: { companyId },
+        where: ownerWhere(companyId, userId),
+        create: { companyId, userId },
         update: {},
         include: { items: { include: { modifiers: true } } },
       });

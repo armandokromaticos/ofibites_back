@@ -34,6 +34,7 @@ model User {
   memberships             CompanyMember[]
   reviewedRegistrations   CompanyRegistrationRequest[] @relation("ReviewedRegistrations")
   cartItemsAdded          CartItem[]                   @relation("CartItemAddedBy")
+  carts                   Cart[]
   supportTickets          SupportTicket[]              @relation("SupportTicketsCreated")
   supportMessages         SupportMessage[]             @relation("SupportMessagesAuthored")
   notifications           Notification[]
@@ -430,7 +431,7 @@ model Company {
   orders              Order[]
   coupons             Coupon[]
   registrationRequest CompanyRegistrationRequest?
-  cart                Cart?
+  carts               Cart[]
   supportTickets      SupportTicket[]
   notifications       Notification[]
   invoices            Invoice[]
@@ -676,21 +677,26 @@ model OrderItemModifier {
 }
 
 // ============================================
-// CART (carrito persistente, uno por empresa)
+// CART (carrito persistente, uno por usuario dentro de cada empresa; T-35)
 // ============================================
 
 model Cart {
   id        String   @id @default(uuid())
-  companyId String   @unique @map("company_id")
+  companyId String   @map("company_id")
+  /// Dueño del carrito: el usuario autenticado en la empresa del header X-Company-Id.
+  userId    String   @map("user_id")
   /// Cupón aplicado (POST /cart/coupon); se revalida y consume en el checkout.
   couponId  String?  @map("coupon_id")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   company Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   coupon  Coupon?    @relation(fields: [couponId], references: [id], onDelete: SetNull)
   items   CartItem[]
 
+  @@unique([companyId, userId])
+  @@index([userId])
   @@index([couponId])
   @@map("carts")
 }

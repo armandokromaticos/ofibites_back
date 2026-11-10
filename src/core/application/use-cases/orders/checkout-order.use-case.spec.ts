@@ -95,6 +95,7 @@ function cart(
   return new CartEntity({
     id: "cart-1",
     companyId: COMPANY,
+    userId: "user-1",
     couponId,
     items,
     createdAt: new Date(),
@@ -160,7 +161,7 @@ function setup(
     ),
   };
   const cartRepository = {
-    getOrCreateViewByCompanyId: jest.fn(() =>
+    getOrCreateViewForUser: jest.fn(() =>
       Promise.resolve(
         cart(
           items,
@@ -347,11 +348,12 @@ describe("CheckoutOrderUseCase", () => {
   });
 
   describe("aislamiento por empresa", () => {
-    it("usa solo el carrito de la empresa del header", async () => {
+    it("usa solo el carrito de quien confirma en la empresa del header (T-35)", async () => {
       const { useCase, cartRepository } = setup();
       await useCase.execute(COMPANY, ACTOR, dto(), NOW);
-      expect(cartRepository.getOrCreateViewByCompanyId).toHaveBeenCalledWith(
+      expect(cartRepository.getOrCreateViewForUser).toHaveBeenCalledWith(
         COMPANY,
+        ACTOR.id,
       );
     });
 
@@ -362,7 +364,7 @@ describe("CheckoutOrderUseCase", () => {
       await expect(
         useCase.execute(COMPANY, ACTOR, dto(), NOW),
       ).rejects.toBeInstanceOf(NotFoundException);
-      expect(cartRepository.getOrCreateViewByCompanyId).not.toHaveBeenCalled();
+      expect(cartRepository.getOrCreateViewForUser).not.toHaveBeenCalled();
       expect(orderRepository.createFromCart).not.toHaveBeenCalled();
     });
 
