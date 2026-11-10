@@ -193,6 +193,7 @@ describe("RepeatOrderIntoCartUseCase", () => {
     expect(cartRepository.addItemsAtomically).toHaveBeenCalledTimes(1);
     expect(cartRepository.addItemsAtomically).toHaveBeenCalledWith(
       "company-1",
+      buyer.id,
       [
         {
           productId: "p-1",
@@ -249,6 +250,7 @@ describe("RepeatOrderIntoCartUseCase", () => {
     expect(result.added).toBe(1);
     expect(cartRepository.addItemsAtomically).toHaveBeenCalledWith(
       "company-1",
+      buyer.id,
       [expect.objectContaining({ productId: "p-1" })],
     );
     expect(result.skipped).toEqual([
@@ -338,8 +340,9 @@ describe("RepeatOrderIntoCartUseCase", () => {
       member: true,
     });
     await useCase.execute("company-1", buyer, { orderId: ORDER_ID });
-    const [, lines] = cartRepository.addItemsAtomically.mock
+    const [, , lines] = cartRepository.addItemsAtomically.mock
       .calls[0] as unknown as [
+      string,
       string,
       { comboId: string | null; modifierIds: string[]; quantity: number }[],
     ];

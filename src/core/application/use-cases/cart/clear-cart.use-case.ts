@@ -18,7 +18,10 @@ export class ClearCartUseCase {
     userId: string,
     lang: Lang = Lang.ES,
   ): Promise<CartResponseDto> {
-    const cart = await this.cartRepository.getOrCreateByCompanyId(companyId);
+    const cart = await this.cartRepository.getOrCreateForUser(
+      companyId,
+      userId,
+    );
     await this.cartRepository.clear(cart.id);
     return this.cartView.build(companyId, userId, lang);
   }

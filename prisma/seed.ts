@@ -1149,17 +1149,23 @@ async function seedEmpresaDemo(password: string) {
     usuarios.push(user.id);
   }
 
-  // Carrito con un poco de todo: tamaño, modificadores, combo y producto sin tamaños.
-  const cart = await prisma.cart.upsert({
-    where: { companyId: EMPRESA_ID },
-    create: { companyId: EMPRESA_ID },
-    update: {},
-  });
-  await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+  // Carritos (uno por usuario dentro de la empresa, T-35) con un poco de todo:
+  // tamaño, modificadores, combo y producto sin tamaños.
   const [admin, compras] = usuarios;
+  const carritoDe = async (userId: string) => {
+    const cart = await prisma.cart.upsert({
+      where: { companyId_userId: { companyId: EMPRESA_ID, userId } },
+      create: { companyId: EMPRESA_ID, userId },
+      update: {},
+    });
+    await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+    return cart.id;
+  };
+  const carritoAdmin = await carritoDe(admin);
+  const carritoCompras = await carritoDe(compras);
   await prisma.cartItem.create({
     data: {
-      cartId: cart.id,
+      cartId: carritoAdmin,
       productId: productId(15),
       productSizeId: sizeId(3),
       quantity: 1,
@@ -1168,7 +1174,7 @@ async function seedEmpresaDemo(password: string) {
   });
   await prisma.cartItem.create({
     data: {
-      cartId: cart.id,
+      cartId: carritoCompras,
       productId: productId(10),
       productSizeId: sizeId(101),
       quantity: 2,
@@ -1180,7 +1186,7 @@ async function seedEmpresaDemo(password: string) {
   });
   await prisma.cartItem.create({
     data: {
-      cartId: cart.id,
+      cartId: carritoCompras,
       productId: productId(11),
       comboId: comboId(1),
       quantity: 1,
@@ -1189,7 +1195,7 @@ async function seedEmpresaDemo(password: string) {
   });
   await prisma.cartItem.create({
     data: {
-      cartId: cart.id,
+      cartId: carritoAdmin,
       productId: productId(8),
       quantity: 3,
       addedById: admin,

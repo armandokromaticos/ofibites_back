@@ -78,13 +78,16 @@ export interface AddCartItemParams {
 }
 
 export interface ICartRepository {
-  // El carrito es único por empresa, por eso el acceso es por companyId en vez
-  // del CRUD genérico. getOrCreate evita el race de creación vía upsert.
-  // Ambos con CART_ITEMS_INCLUDE (sin datos de presentación).
-  getOrCreateByCompanyId(companyId: string): Promise<CartEntity>;
-  findByCompanyId(companyId: string): Promise<CartEntity | null>;
+  // El carrito es único por (empresa, usuario) (T-35), por eso el acceso es
+  // por esa pareja en vez del CRUD genérico. getOrCreate evita el race de
+  // creación vía upsert. Ambos con CART_ITEMS_INCLUDE (sin presentación).
+  getOrCreateForUser(companyId: string, userId: string): Promise<CartEntity>;
+  findForUser(companyId: string, userId: string): Promise<CartEntity | null>;
   /** Igual que getOrCreate pero con CART_FULL_INCLUDE: solo para la vista. */
-  getOrCreateViewByCompanyId(companyId: string): Promise<CartEntity>;
+  getOrCreateViewForUser(
+    companyId: string,
+    userId: string,
+  ): Promise<CartEntity>;
   addItem(cartId: string, params: AddCartItemParams): Promise<void>;
   /**
    * Añade varias líneas en **una transacción**: si ya existe una idéntica
@@ -93,6 +96,7 @@ export interface ICartRepository {
    */
   addItemsAtomically(
     companyId: string,
+    userId: string,
     lines: AddCartItemParams[],
   ): Promise<void>;
   updateItemQuantity(itemId: string, quantity: number): Promise<void>;

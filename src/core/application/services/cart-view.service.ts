@@ -31,7 +31,7 @@ interface AppliedCoupon {
 }
 
 /**
- * Carga el carrito de la empresa y arma la respuesta recalculando precios
+ * Carga el carrito del usuario en la empresa y arma la respuesta recalculando precios
  * contra el catálogo actual (el carrito no congela precios). Es el camino
  * común de retorno de todos los use cases del carrito.
  *
@@ -55,8 +55,10 @@ export class CartViewService {
     userId: string,
     lang: Lang = Lang.ES,
   ): Promise<CartResponseDto> {
-    const cart =
-      await this.cartRepository.getOrCreateViewByCompanyId(companyId);
+    const cart = await this.cartRepository.getOrCreateViewForUser(
+      companyId,
+      userId,
+    );
     return this.toResponse(cart, userId, lang);
   }
 

@@ -44,6 +44,7 @@ function setup(
   const cart = new CartEntity({
     id: "cart-1",
     companyId: "company-1",
+    userId: "user-1",
     couponId: options.couponId ?? null,
     items: subtotals.map((_, i) => ({
       id: `ci-${i}`,
@@ -59,7 +60,7 @@ function setup(
   });
   const service = new CartViewService(
     {
-      getOrCreateViewByCompanyId: jest.fn(() => Promise.resolve(cart)),
+      getOrCreateViewForUser: jest.fn(() => Promise.resolve(cart)),
     } as unknown as ICartRepository,
     {
       priceLines: jest.fn((inputs: { productId: string }[]) =>
@@ -223,6 +224,7 @@ describe("CartViewService · facturas (T-06)", () => {
     const cart = new CartEntity({
       id: "cart-1",
       companyId: "company-1",
+      userId: "user-1",
       couponId: null,
       items: [
         {
@@ -243,7 +245,7 @@ describe("CartViewService · facturas (T-06)", () => {
     } as unknown as ICompanyRepository;
     return new CartViewService(
       {
-        getOrCreateViewByCompanyId: jest.fn(() => Promise.resolve(cart)),
+        getOrCreateViewForUser: jest.fn(() => Promise.resolve(cart)),
       } as unknown as ICartRepository,
       {
         priceLines: jest.fn(() =>

@@ -77,6 +77,8 @@ export interface CartItemInfo {
 interface CartProps {
   id: string;
   companyId: string;
+  /** Dueño del carrito (T-35): uno por usuario dentro de cada empresa. */
+  userId: string;
   /** Cupón aplicado (`POST /cart/coupon`); ausente = sin cupón. */
   couponId?: string | null;
   items: CartItemInfo[];
@@ -201,6 +203,9 @@ export class CartEntity {
   get companyId(): string {
     return this.props.companyId;
   }
+  get userId(): string {
+    return this.props.userId;
+  }
   get couponId(): string | null {
     return this.props.couponId ?? null;
   }
@@ -222,6 +227,7 @@ export class CartEntity {
     return new CartEntity({
       id: prisma.id,
       companyId: prisma.companyId,
+      userId: prisma.userId,
       couponId: prisma.couponId ?? null,
       createdAt: prisma.createdAt,
       updatedAt: prisma.updatedAt,

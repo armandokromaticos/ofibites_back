@@ -41,6 +41,7 @@ function cart(itemCount: number, couponId: string | null = null): CartEntity {
   return new CartEntity({
     id: "cart-1",
     companyId: "company-1",
+    userId: "user-1",
     couponId,
     items: Array.from({ length: itemCount }, (_, i) => ({
       id: `ci-${i}`,
@@ -65,7 +66,7 @@ function setup(
   } = {},
 ) {
   const cartRepository = {
-    getOrCreateByCompanyId: jest.fn(() =>
+    getOrCreateForUser: jest.fn(() =>
       Promise.resolve(cart(options.items ?? 1, options.couponId ?? null)),
     ),
     setCoupon: jest.fn(() => Promise.resolve()),

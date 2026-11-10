@@ -19,7 +19,10 @@ export class RemoveCartCouponUseCase {
     userId: string,
     lang: Lang = Lang.ES,
   ): Promise<CartResponseDto> {
-    const cart = await this.cartRepository.getOrCreateByCompanyId(companyId);
+    const cart = await this.cartRepository.getOrCreateForUser(
+      companyId,
+      userId,
+    );
     if (cart.couponId) {
       await this.cartRepository.setCoupon(cart.id, null);
     }

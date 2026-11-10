@@ -41,7 +41,7 @@ describe("CartRepository.addItemsAtomically", () => {
   it("suma a la línea existente, crea las nuevas y agrupa duplicados, todo en la transacción", async () => {
     const { repo, prisma, tx } = setup([{ id: "item-1", productId: "p-1" }]);
 
-    await repo.addItemsAtomically("company-1", [
+    await repo.addItemsAtomically("company-1", "user-1", [
       { productId: "p-1", quantity: 2, modifierIds: [] },
       { productId: "p-2", quantity: 1, modifierIds: ["m-1"], addedById: "u-1" },
       { productId: "p-2", quantity: 4, modifierIds: ["m-1"], addedById: "u-1" },
@@ -49,7 +49,12 @@ describe("CartRepository.addItemsAtomically", () => {
 
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(tx.cart.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { companyId: "company-1" } }),
+      expect.objectContaining({
+        where: {
+          companyId_userId: { companyId: "company-1", userId: "user-1" },
+        },
+        create: { companyId: "company-1", userId: "user-1" },
+      }),
     );
     expect(tx.cartItem.update).toHaveBeenNthCalledWith(1, {
       where: { id: "item-1" },
@@ -72,11 +77,50 @@ describe("CartRepository.addItemsAtomically", () => {
     );
 
     await expect(
-      repo.addItemsAtomically("company-1", [
+      repo.addItemsAtomically("company-1", "user-1", [
         { productId: "p-1", quantity: 1, modifierIds: [] },
         { productId: "p-2", quantity: 1, modifierIds: [] },
       ]),
     ).rejects.toThrow("FK rota");
     expect(tx.cartItem.create).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("CartRepository · carrito por usuario (T-35)", () => {
+  it("getOrCreateForUser, getOrCreateViewForUser y findForUser usan la clave (empresa, usuario)", async () => {
+    const row = {
+      id: "cart-1",
+      companyId: "company-1",
+      userId: "user-2",
+      couponId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      items: [],
+    };
+    const upsert = jest.fn<
+      Promise<typeof row>,
+      [{ where: unknown; create: unknown }]
+    >(() => Promise.resolve(row));
+    const findUnique = jest.fn<Promise<null>, [{ where: unknown }]>(() =>
+      Promise.resolve(null),
+    );
+    const prisma = { cart: { upsert, findUnique } };
+    const repo = new CartRepository(prisma as unknown as PrismaService);
+    const key = {
+      companyId_userId: { companyId: "company-1", userId: "user-2" },
+    };
+
+    const cart = await repo.getOrCreateForUser("company-1", "user-2");
+    await repo.getOrCreateViewForUser("company-1", "user-2");
+    const missing = await repo.findForUser("company-1", "user-2");
+
+    expect(cart.userId).toBe("user-2");
+    expect(upsert).toHaveBeenCalledTimes(2);
+    for (const [args] of upsert.mock.calls) {
+      expect(args.where).toEqual(key);
+      expect(args.create).toEqual({ companyId: "company-1", userId: "user-2" });
+    }
+    expect(findUnique.mock.calls[0][0].where).toEqual(key);
+    expect(missing).toBeNull();
   });
 });

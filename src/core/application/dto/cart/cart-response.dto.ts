@@ -80,7 +80,7 @@ export class CartItemResponseDto {
     nullable: true,
     type: String,
     description:
-      "Usuario de la empresa que agregó la línea (carrito compartido)",
+      "Usuario que agregó la línea (desde T-35, el dueño del carrito)",
   })
   addedById: string | null;
 

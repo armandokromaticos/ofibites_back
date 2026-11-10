@@ -39,7 +39,10 @@ export class AddCartItemUseCase {
       this.assertLine(dto),
     ]);
 
-    const cart = await this.cartRepository.getOrCreateByCompanyId(companyId);
+    const cart = await this.cartRepository.getOrCreateForUser(
+      companyId,
+      userId,
+    );
     const modifierIds = (dto.modifiers ?? []).map(
       (modifier) => modifier.modifierId,
     );

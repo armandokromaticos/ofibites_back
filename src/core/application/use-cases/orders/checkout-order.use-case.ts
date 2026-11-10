@@ -150,8 +150,10 @@ export class CheckoutOrderUseCase {
       throw checkoutBadRequest(cutoffError.code, cutoffError.message);
     }
 
-    const cart =
-      await this.cartRepository.getOrCreateViewByCompanyId(companyId);
+    const cart = await this.cartRepository.getOrCreateViewForUser(
+      companyId,
+      actor.id,
+    );
     if (cart.items.length === 0) {
       throw checkoutBadRequest(
         CheckoutErrorCode.CART_EMPTY,
